@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Đánh Giá Điểm Rèn Luyện - Trình Diễn CSDL Siêu Chi Tiết</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/sql.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #top-nav { background: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); z-index: 10; flex-shrink: 0;}
+        .nav-btn { transition: all 0.2s; border: 2px solid transparent; font-size: 0.9rem;}
+        .nav-btn.active { background-color: #eff6ff; color: #1d4ed8; border-color: #3b82f6; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); }
+        #workspace { flex-grow: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        #network-container { width: 100%; height: 100%; background-color: #ffffff; }
+        
+        #bottom-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 12px 24px; border-radius: 50px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: center; z-index: 20; border: 1px solid #e2e8f0; }
+        .step-btn { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 10px 25px; border-radius: 30px; font-weight: bold; font-size: 1.05rem; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.2s; cursor: pointer; border: none; }
+        .step-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
+        .step-btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .hidden { display: none !important; }
+        .scrollable-tab { overflow-y: auto; height: 100%; padding: 30px; background: #f8fafc; }
+        
+        /* SQL Cards */
+        .sql-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-top: 5px solid #3b82f6; cursor: pointer; transition: all 0.3s ease; }
+        .sql-card:hover { transform: translateY(-5px); box-shadow: 0 15px 25px -5px rgba(0,0,0,0.1); }
+        
+        /* Popup Customization for Super Detail */
+        .swal2-popup { border-radius: 16px !important; width: 850px !important; max-width: 95vw !important; }
+        .swal2-html-container { text-align: left !important; font-size: 1rem; line-height: 1.6; }
+        .attr-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
+        .attr-table th, .attr-table td { border: 1px solid #e2e8f0; padding: 8px 12px; }
+        .attr-table th { background: #f1f5f9; font-weight: 700; color: #1e293b; text-align: left; }
+        .attr-pk { color: #dc2626; font-weight: bold; background: #fee2e2; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+        .attr-fk { color: #2563eb; font-weight: bold; background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+        .attr-type { font-family: 'Fira Code', monospace; color: #0f766e; }
+        
+        pre { border-radius: 10px; margin-top: 10px !important; font-family: 'Fira Code', monospace !important; font-size: 0.9em; }
+        
+        /* Normalization 3NF/BCNF Cards */
+        .nf-card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .nf-title { font-size: 1.3rem; font-weight: 800; color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;}
+        .nf-badge { background: #3b82f6; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div id="top-nav">
+        <div>
+            <h1 class="text-xl font-extrabold text-slate-800 tracking-tight">Cơ Sở Dữ Liệu <span class="text-blue-600">Điểm Rèn Luyện</span></h1>
+            <p class="text-xs text-slate-500 font-medium">Bản Trình Diễn Học Thuật (Hệ Cơ Sở Dữ Liệu)</p>
+        </div>
+        <div class="flex space-x-1">
+            <button onclick="setPhase(1)" id="btn-phase1" class="nav-btn px-3 py-2 rounded text-slate-600 hover:bg-slate-100">1. Tổ Chức & Phiếu Điểm</button>
+            <button onclick="setPhase(2)" id="btn-phase2" class="nav-btn px-3 py-2 rounded text-slate-600 hover:bg-slate-100">2. Tiêu Chí & Log</button>
+            <button onclick="setPhase(3)" id="btn-phase3" class="nav-btn px-3 py-2 rounded text-slate-600 hover:bg-slate-100">3. Full ERD</button>
+            <button onclick="setPhase(4)" id="btn-phase4" class="nav-btn px-3 py-2 rounded text-slate-600 hover:bg-slate-100">4. Phân Tích 3NF & BCNF</button>
+            <button onclick="setPhase(5)" id="btn-phase5" class="nav-btn px-3 py-2 rounded text-slate-600 hover:bg-slate-100">5. Code SQL Nâng Cao</button>
+        </div>
+    </div>
+
+    <!-- Workspace -->
+    <div id="workspace">
+        
+        <!-- Network Canvas for Phases 1-3 -->
+        <div id="network-container"></div>
+        
+        <!-- Bottom Controller for Step-by-Step -->
+        <div id="bottom-panel">
+            <div id="step-counter" class="text-slate-600 font-bold text-base">Bảng: 0/10</div>
+            <button id="btn-next-step" onclick="nextStep()" class="step-btn">Bảng Tiếp Theo 🚀</button>
+        </div>
+        
+        <!-- Tab 4: Normalization 3NF & BCNF -->
+        <div id="nf-container" class="hidden scrollable-tab">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-8 text-center">PHÂN TÍCH CHUẨN HÓA DỮ LIỆU TỪ 1NF ĐẾN BCNF</h2>
+                
+                <div class="nf-card">
+                    <div class="nf-title"><span class="nf-badge">1NF & 2NF</span> Đảm bảo nguyên tử và phụ thuộc toàn phần</div>
+                    <p class="mb-4 text-slate-700"><b>Định nghĩa:</b> 1NF yêu cầu mỗi thuộc tính (cột) phải chứa giá trị nguyên tử (không thể chia nhỏ hơn), không chứa mảng hay danh sách. 2NF yêu cầu bảng đạt 1NF và KHÔNG có phụ thuộc một phần (Partial Dependency) vào khóa chính phức hợp (mọi cột không khóa phải phụ thuộc vào TOÀN BỘ khóa chính).</p>
+                    <p class="text-slate-700"><b>Ứng dụng thực tiễn trong Đồ án:</b> Thay vì để Sinh viên nộp nhiều hình ảnh minh chứng và lưu chung vào 1 cột <code>proof_urls</code> dưới dạng chuỗi "anh1.jpg, anh2.jpg" (Vi phạm 1NF cực nặng vì chứa mảng), đồ án đã tách hẳn ra bảng <code>evidences</code>. Ở bảng <code>score_details</code> (Khóa chính đơn <code>id</code>), các cột như <code>note</code> hay <code>proof_url</code> phụ thuộc hoàn toàn vào <code>id</code> duy nhất, đáp ứng xuất sắc chuẩn 2NF.</p>
+                </div>
+
+                <div class="nf-card border-l-4 border-l-blue-500">
+                    <div class="nf-title"><span class="nf-badge">3NF</span> Loại bỏ phụ thuộc bắc cầu (Transitive Dependency)</div>
+                    <p class="mb-4 text-slate-700"><b>Định nghĩa:</b> Bảng đạt 3NF nếu nó đạt 2NF và KHÔNG có bất kỳ thuộc tính không khóa nào phụ thuộc vào một thuộc tính không khóa khác. Nói đơn giản: Nếu A -> B, và B -> C, thì suy ra A -> C. Trong trường hợp này, C phải bị tách ra bảng riêng để tránh lặp lố dữ liệu (Data Redundancy).</p>
+                    <div class="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-lg">
+                        <div>
+                            <h4 class="font-bold text-red-600 mb-2">❌ Nếu thiết kế Sai (Gây dị thường dữ liệu)</h4>
+                            <p class="text-sm">Bảng <b>users</b>: <code>id</code>, <code>full_name</code>, <code>class_id</code>, <code>class_name</code>, <code>department_name</code>.</p>
+                            <p class="text-sm mt-2 text-slate-500">Phân tích phụ thuộc hàm: <code>id</code> -> <code>class_id</code>, nhưng <code>class_id</code> lại -> <code>class_name</code> và <code>department_name</code>. Dẫn tới <code>class_name</code> bị copy-paste lại hàng nghìn lần cho sinh viên cùng lớp. Nếu Trường quyết định đổi tên lớp, ta gặp Dị Thường Cập Nhật (Update Anomaly) vì phải lặp vòng UPDATE hàng nghìn dòng.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-green-600 mb-2">✅ Thiết kế Đồ án (Chuẩn 3NF hoàn hảo)</h4>
+                            <p class="text-sm text-slate-700">Đồ án tách triệt để thành 3 bảng hoàn toàn độc lập:</p>
+                            <ul class="text-sm list-disc pl-5 mt-1">
+                                <li><b>departments:</b> <code>id</code> (PK), <code>name</code></li>
+                                <li><b>classes:</b> <code>id</code> (PK), <code>department_id</code> (FK), <code>name</code></li>
+                                <li><b>users:</b> <code>id</code> (PK), <code>full_name</code></li>
+                                <li>Dùng bảng trung gian <b>semester_enrollments</b> nối user với class.</li>
+                            </ul>
+                            <p class="text-sm mt-2 text-slate-600">Kết quả: Đổi tên Khoa/Lớp chỉ cần UPDATE đúng 1 dòng duy nhất. Loại bỏ hoàn toàn dị thường dữ liệu (Anomalies).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="nf-card border-l-4 border-l-purple-500">
+                    <div class="nf-title"><span class="nf-badge">BCNF</span> Boyce-Codd Normal Form (Chuẩn 3.5 đỉnh cao)</div>
+                    <p class="mb-4 text-slate-700"><b>Định nghĩa:</b> BCNF chặt chẽ hơn 3NF. Nó quy định một cách tuyệt đối: <b>Trong mọi phụ thuộc hàm X -> Y (X xác định Y), thì X bắt buộc phải là Siêu khóa (Superkey).</b> Không có ngoại lệ nào cho thuộc tính khóa phụ thuộc vào thuộc tính không khóa.</p>
+                    <p class="mb-4 text-slate-700"><b>Phân tích chuyên sâu bảng <code>semester_enrollments</code> (Tiệm cận BCNF)</b></p>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <p class="text-sm text-slate-800">Bảng này quyết định quan hệ logic cốt lõi: <i>Sinh viên A, vào Học kỳ B, thì phải học ở Lớp C</i>.</p>
+                        <ul class="text-sm list-disc pl-5 mt-2 space-y-2">
+                            <li><b>Giả sử ta không dùng Khóa nhân tạo (Surrogate Key):</b> Ta phải dùng khóa chính phức hợp (Composite PK) là tập <code>(user_id, semester_id, class_id)</code>.</li>
+                            <li><b>Phát hiện Phụ thuộc hàm:</b> Thực tế nghiệp vụ quy định 1 sinh viên trong 1 học kỳ chỉ học ĐÚNG 1 lớp hành chính. Từ đó sinh ra phụ thuộc hàm: <code>(user_id, semester_id) -> class_id</code>.</li>
+                            <li><b>Vi phạm BCNF:</b> Trong phụ thuộc hàm trên, tập <code>(user_id, semester_id)</code> KHÔNG phải là Siêu khóa của toàn bảng (vì Siêu khóa đang là cả 3 cột), nhưng nó lại có quyền lực xác định được <code>class_id</code>. => Thiết kế này rơi vào lỗi vi phạm BCNF!</li>
+                            <li><b>👉 Cách Đồ án khắc phục một cách "Nghệ thuật" để đạt BCNF:</b> Đồ án vứt bỏ composite key, sinh ra khóa chính độc lập <code>id (UUID)</code> (Surrogate Key). Sau đó, sử dụng UNIQUE Constraint lên tập <code>(user_id, semester_id)</code> để biến tập này thành một <b>Candidate Key (Khóa ứng viên)</b> thực thụ. Lúc này, mệnh đề "(user_id, semester_id) -> class_id" trở thành "Candidate Key -> class_id", tức Determinant đã là một Siêu khóa. Hệ thống chính thức đạt ngưỡng BCNF!</li>
+                        </ul>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+        <!-- Tab 5: Code SQL Nâng Cao -->
+        <div id="sql-container" class="hidden scrollable-tab">
+            <h2 class="text-3xl font-extrabold text-slate-800 mb-8 text-center">TRÌNH DIỄN KỸ THUẬT SQL NÂNG CAO (KÈM LÝ THUYẾT & CODE)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-7xl mx-auto">
+                <div class="sql-card border-t-[#3b82f6]" onclick="showSql('ddl')">
+                    <h3 class="font-bold text-xl text-slate-800 mb-2">1. Ngôn Ngữ Định Nghĩa Dữ Liệu (DDL)</h3>
+                    <p class="text-slate-600 text-sm">Hiểu khái niệm DDL, Khóa Ngoại (Foreign Key), Constraints (Ràng buộc toàn vẹn) giúp bảo vệ data từ tận rễ.</p>
+                </div>
+                <div class="sql-card border-t-[#ec4899]" onclick="showSql('trigger')">
+                    <h3 class="font-bold text-xl text-slate-800 mb-2">2. Triggers (Bộ Kích Hoạt Tự Động)</h3>
+                    <p class="text-slate-600 text-sm">Khái niệm Trigger là gì? Tại sao phải gắn Trigger thay vì viết code lưu lịch sử trên Backend (Java/NodeJS)?</p>
+                </div>
+                <div class="sql-card border-t-[#10b981]" onclick="showSql('view')">
+                    <h3 class="font-bold text-xl text-slate-800 mb-2">3. Views (Khung Nhìn Ảo)</h3>
+                    <p class="text-slate-600 text-sm">Khái niệm View là gì? Sức mạnh bảo mật và đóng gói truy vấn phức tạp của View giúp ích gì cho dự án?</p>
+                </div>
+                <div class="sql-card border-t-[#8b5cf6]" onclick="showSql('proc')">
+                    <h3 class="font-bold text-xl text-slate-800 mb-2">4. Stored Procedures (Thủ Tục Lưu Trữ)</h3>
+                    <p class="text-slate-600 text-sm">Giảm tải Network Traffic, tăng tốc xử lý hàng triệu vòng lặp tính điểm trực tiếp dưới Engine Database.</p>
+                </div>
+                <div class="sql-card border-t-[#f59e0b]" onclick="showSql('transaction')">
+                    <h3 class="font-bold text-xl text-slate-800 mb-2">5. Transaction & ACID Properties</h3>
+                    <p class="text-slate-600 text-sm">Phân tích Tính Nguyên Tử (Atomicity), Nhất Quán (Consistency), Độc Lập (Isolation) & Bền Vững (Durability).</p>
+                </div>
+                <div class="sql-card border-t-[#ef4444]" onclick="showSql('complex')">
+                    <h3 class="font-bold text-xl text-slate-800 mb-2">6. Complex Queries (Truy Vấn Phức Tạp)</h3>
+                    <p class="text-slate-600 text-sm">Học cách kết nối (JOIN), Gom nhóm (GROUP BY), Lọc theo nhóm (HAVING) và Truy vấn con (SUBQUERY).</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /* ======================== DATA: SUPER DETAILED SCHEMA ======================== */
+        const nodeFont = { multi: 'html', face: 'Fira Code, monospace', size: 14, align: 'left', color: '#1e293b' };
+        
+        function makePopupContent(tableId, tableName, tablePurpose, attrs) {
+            let trs = attrs.map(a => `
+                <tr>
+                    <td>
+                        ${a.pk ? '<span class="attr-pk">PK</span> ' : ''}
+                        ${a.fk ? '<span class="attr-fk">FK</span> ' : ''}
+                        <b>${a.name}</b>
+                    </td>
+                    <td class="attr-type">${a.type}</td>
+                    <td>${a.desc}</td>
+                </tr>
+            `).join('');
+            
+            return `
+                <div style="background:#eff6ff; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #3b82f6;">
+                    <h4 style="margin:0 0 5px 0; color:#1e40af; font-weight:bold;">Định nghĩa / Mục đích bảng ${tableName}</h4>
+                    <p style="margin:0; font-size:0.95em; color:#1e293b;">${tablePurpose}</p>
+                </div>
+                <h5 style="font-weight:bold; color:#334155; margin-bottom:10px;">Phân tích 100% Thuộc tính (Theo file SQL)</h5>
+                <div style="max-height: 450px; overflow-y: auto;">
+                    <table class="attr-table">
+                        <thead><tr><th>Tên Thuộc Tính</th><th>Kiểu Dữ Liệu (Data Type)</th><th>Giải thích Ý Nghĩa & Vai Trò Ràng Buộc</th></tr></thead>
+                        <tbody>${trs}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const dbNodes = {
+            // ================== PHASE 1: ORG & SCORE ==================
+            departments: { id: 'departments', phase: 1, group: 'org', label: '<b>departments</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\ncode: <i>VARCHAR</i>\nname: <i>VARCHAR</i>',
+                popup: makePopupContent('departments', 'Khoa', 'Lưu trữ thông tin các Khoa chuyên ngành trong trường đại học. Thiết kế dạng bảng riêng giúp đạt chuẩn 3NF, tránh việc lưu thừa tên Khoa ở nhiều nơi gây bất đồng bộ.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính, dùng UUID tự sinh. Tăng cường khả năng mở rộng phân tán và chống tấn công dò tìm ID.'},
+                    {name: 'code', type: 'VARCHAR(20)', desc: 'Mã định danh khoa (Ví dụ: CNTT, KTE). Được đặt UNIQUE để dùng làm tham số URL hoặc Import/Export Excel.'},
+                    {name: 'name', type: 'VARCHAR(100)', desc: 'Tên đầy đủ của Khoa (Ví dụ: Công Nghệ Thông Tin).'},
+                    {name: 'is_active', type: 'SMALLINT', desc: 'Cờ trạng thái hoạt động (1=Đang h.động, 0=Đã đóng). Áp dụng kỹ thuật Xóa mềm (Soft Delete) để bảo tồn dữ liệu Lớp học trực thuộc.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Dấu thời gian ghi lại thời điểm tạo record.'}
+                ])
+            },
+            classes: { id: 'classes', phase: 1, group: 'org', label: '<b>classes</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> department_id\ncode: <i>VARCHAR</i>\nacademic_year',
+                popup: makePopupContent('classes', 'Lớp Học', 'Quản lý danh sách các Lớp sinh hoạt hành chính. Mỗi Lớp bắt buộc phải trực thuộc 1 Khoa.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính định danh duy nhất.'},
+                    {name: 'code', type: 'VARCHAR(20)', desc: 'Mã lớp hành chính (Ví dụ: 21DTH1). Dùng constraint UNIQUE. Thường dùng để sinh viên tự tìm lớp.'},
+                    {name: 'name', type: 'VARCHAR(100)', desc: 'Tên lớp đầy đủ.'},
+                    {fk: true, name: 'department_id', type: 'VARCHAR(36)', desc: 'Khóa ngoại trỏ đến bảng departments. Thiết lập quan hệ 1-N (1 Khoa có N Lớp).'},
+                    {name: 'academic_year', type: 'VARCHAR(20)', desc: 'Niên khóa của lớp (Ví dụ: 2021-2025). Khóa phân loại sinh viên cực kỳ quan trọng.'},
+                    {name: 'is_active', type: 'SMALLINT', desc: 'Kỹ thuật Xóa mềm.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Dấu thời gian khởi tạo.'}
+                ])
+            },
+            users: { id: 'users', phase: 1, group: 'auth', label: '<b>users</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\nrole: <i>ENUM</i>\nfailed_login_attempts\nlocked_until',
+                popup: makePopupContent('users', 'Tài Khoản Trung Tâm (Người Dùng)', 'Bảng trung tâm cốt lõi chứa mọi loại người dùng (Sinh viên, Giảng viên, Admin). Cấu trúc bảng tối giản chuẩn 3NF, không chứa bất kỳ thông tin Lớp hay Điểm nào, kết hợp nhiều cơ chế bảo mật tinh vi.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính hệ thống.'},
+                    {name: 'student_id', type: 'VARCHAR(20)', desc: 'Mã số sinh viên. Được phép NULL vì user có thể là Cố vấn học tập (Không có MSSV).'},
+                    {name: 'email', type: 'VARCHAR(100)', desc: 'Định danh đăng nhập duy nhất (UNIQUE constraint).'},
+                    {name: 'password_hash', type: 'VARCHAR(255)', desc: 'Bắt buộc lưu mật khẩu đã băm một chiều (Bcrypt/Argon2).'},
+                    {name: 'full_name', type: 'VARCHAR(100)', desc: 'Họ và tên hiển thị.'},
+                    {name: 'avatar_url', type: 'VARCHAR(500)', desc: 'Đường dẫn ảnh đại diện.'},
+                    {name: 'phone', type: 'VARCHAR(20)', desc: 'Số điện thoại.'},
+                    {name: 'role', type: 'users_role (ENUM)', desc: 'Khóa phân quyền cấp CSDL: STUDENT, ADVISOR, CLASS_COMMITTEE...'},
+                    {fk: true, name: 'department_id', type: 'VARCHAR(36)', desc: 'Nếu user có vai trò Ban chủ nhiệm Khoa, họ sẽ trực tiếp liên kết với Khoa quản lý của họ ở đây.'},
+                    {name: 'is_active', type: 'SMALLINT', desc: 'Trạng thái hoạt động tài khoản (Soft Delete / Ban).'},
+                    {name: 'last_login_at', type: 'TIMESTAMP', desc: 'Tracking thời gian hoạt động cuối.'},
+                    {name: 'created_at, updated_at', type: 'TIMESTAMP', desc: 'Dấu thời gian theo dõi lịch sử chỉnh sửa profile.'},
+                    {name: 'failed_login_attempts', type: 'SMALLINT', desc: 'Tính năng bảo mật Brute Force: Đếm số lần nhập sai Pass liên tiếp. Quá giới hạn sẽ kích hoạt cột locked_until.'},
+                    {name: 'locked_until', type: 'TIMESTAMP', desc: 'Bảo mật: Nếu có giá trị > Now(), user bị cấm đăng nhập (Bị khóa tạm thời).'},
+                    {name: 'session_version', type: 'INT', desc: 'Bảo mật Auth JWT: Khi người dùng đổi Pass hoặc bị kích xuất, số này tăng lên 1, khiến toàn bộ Token JWT cũ trở nên vô hiệu hóa.'}
+                ])
+            },
+            class_roles: { id: 'class_roles', phase: 1, group: 'org', label: '<b>class_roles</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> user_id\n<b>FK</b> class_id\nstart_date\nend_date',
+                popup: makePopupContent('class_roles', 'Nhiệm Kỳ Ban Cán Sự', 'Giải quyết bài toán: Một Lớp Trưởng chỉ có quyền duyệt điểm trong thời gian đương nhiệm. Khi từ chức, quyền duyệt điểm phải lập tức bị vô hiệu hóa.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'user_id', type: 'VARCHAR(36)', desc: 'Chỉ định sinh viên nào.'},
+                    {fk: true, name: 'class_id', type: 'VARCHAR(36)', desc: 'Có quyền trên lớp nào.'},
+                    {name: 'role_type', type: 'ENUM', desc: 'Xác định chức danh: CLASS_PRESIDENT (Lớp trưởng), SECRETARY (Bí thư).'},
+                    {name: 'is_active', type: 'SMALLINT', desc: '1=Đương nhiệm, 0=Miễn nhiệm.'},
+                    {name: 'start_date', type: 'TIMESTAMP', desc: 'Ngày nhậm chức.'},
+                    {name: 'end_date', type: 'TIMESTAMP', desc: 'Ngày kết thúc nhiệm kỳ. Rất thông minh để hệ thống tự động chặn quyền mà không cần người thao tác bằng tay.'}
+                ])
+            },
+            semesters: { id: 'semesters', phase: 1, group: 'time', label: '<b>semesters</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\nstudent_deadline\nadvisor_deadline',
+                popup: makePopupContent('semesters', 'Tuyến Thời Gian Học Kỳ', 'Kiểm soát chặt chẽ toàn bộ mốc thời gian của chiến dịch chấm điểm rèn luyện. Tách riêng deadline cho 3 nhóm đối tượng để workflow trơn tru.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {name: 'code', type: 'VARCHAR(20)', desc: 'Mã định danh kỳ học (VD: 2023_1).'},
+                    {name: 'name', type: 'VARCHAR(100)', desc: 'Tên Học kỳ (VD: Học kỳ 1 năm học 2023-2024).'},
+                    {name: 'academic_year', type: 'VARCHAR(20)', desc: 'Niên khóa năm học đó.'},
+                    {name: 'semester_number', type: 'SMALLINT', desc: 'Đánh số kỳ (1, 2 hoặc 3 - Kỳ hè).'},
+                    {name: 'start_date, end_date', type: 'TIMESTAMP', desc: 'Thời gian bắt đầu và kết thúc của nguyên Học kỳ.'},
+                    {name: 'student_deadline', type: 'TIMESTAMP', desc: 'Tuyến thời gian 1: Deadline bắt buộc cho Sinh viên tự đánh giá. Quá hạn Nút Nộp Bài biến mất.'},
+                    {name: 'class_committee_deadline', type: 'TIMESTAMP', desc: 'Tuyến thời gian 2: Dành cho Ban cán sự lớp duyệt.'},
+                    {name: 'advisor_deadline', type: 'TIMESTAMP', desc: 'Tuyến thời gian 3: Dành cho Cố vấn học tập chốt sổ.'},
+                    {name: 'school_deadline', type: 'TIMESTAMP', desc: 'Tuyến thời gian 4: Khoa/Trường khóa toàn bộ dữ liệu kỳ đó.'},
+                    {name: 'status', type: 'ENUM', desc: 'Trạng thái chiến dịch (UPCOMING, ONGOING, FINISHED).'},
+                    {name: 'is_active', type: 'SMALLINT', desc: 'Xóa mềm.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Dấu thời gian tạo.'}
+                ])
+            },
+            semester_enrollments: { id: 'semester_enrollments', phase: 1, group: 'time', label: '<b>semester_enrollments</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> user_id\n<b>FK</b> semester_id\n<b>FK</b> class_id',
+                popup: makePopupContent('semester_enrollments', 'Lịch Sử Gắn Lớp (Enrollment)', 'Đây là bảng xử lý triệt để bài toán Lưu Ban hoặc Chuyển Ngành. Nó chốt sổ (Snapshot) Sinh viên A học Lớp B trong một Học kỳ C cụ thể. Bảng này đạt ngưỡng BCNF.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính độc lập (Surrogate Key) giúp bảng này đạt BCNF thay vì dùng Composite Key phức tạp.'},
+                    {fk: true, name: 'user_id', type: 'VARCHAR(36)', desc: 'Sinh viên nào?'},
+                    {fk: true, name: 'semester_id', type: 'VARCHAR(36)', desc: 'Trong học kỳ nào?'},
+                    {fk: true, name: 'class_id', type: 'VARCHAR(36)', desc: 'Thuộc Lớp nào? Việc lưu class_id ở đây (chứ không phải trong bảng users) là quyết định cực kỳ thông minh bảo vệ tính nhất quán lịch sử.'},
+                    {name: 'enrolled_at', type: 'TIMESTAMP', desc: 'Thời điểm sinh viên được xếp lớp.'},
+                    {name: 'is_active', type: 'SMALLINT', desc: 'Cờ trạng thái.'}
+                ])
+            },
+            scoring_sheets: { id: 'scoring_sheets', phase: 1, group: 'score', label: '<b>scoring_sheets</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> enrollment_id\nstatus: <i>ENUM</i>\nstudent_total\nfinal_total',
+                popup: makePopupContent('scoring_sheets', 'Phiếu Điểm Rèn Luyện (Mặt trước)', 'Tượng trưng cho tờ giấy A4 điểm rèn luyện tổng quát. Nó quản lý trạng thái duyệt Workflow và lưu trữ tổng điểm các cấp để dễ dàng phát hiện điểm bất thường.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {name: 'status', type: 'ENUM', desc: 'Trạng thái quy trình (Workflow State Machine): DRAFT, SUBMITTED, CLASS_APPROVED, ADVISOR_APPROVED, FINALIZED...'},
+                    {name: 'current_step', type: 'SMALLINT', desc: 'Cột phụ trợ tracking bước hiện tại (1->4) trong Workflow.'},
+                    {name: 'student_total', type: 'NUMERIC(5,1)', desc: 'Tổng điểm Sinh viên tự đánh giá. (Chứa được 1 số lẻ thập phân).'},
+                    {name: 'class_total', type: 'NUMERIC(5,1)', desc: 'Tổng điểm BCS lớp đánh giá.'},
+                    {name: 'advisor_total', type: 'NUMERIC(5,1)', desc: 'Tổng điểm Cố vấn chốt.'},
+                    {name: 'final_total', type: 'NUMERIC(5,1)', desc: 'Tổng điểm Cuối Cùng được Trường ghi nhận.'},
+                    {name: 'classification', type: 'ENUM', desc: 'Xếp loại hạnh kiểm dựa theo điểm (XUAT_SAC, GIOI, KHA, TRUNG_BINH, YEU).'},
+                    {name: 'student_submitted_at, class_reviewed_at...', type: 'TIMESTAMP', desc: 'Các cột Snapshot lưu chính xác Giây/Phút/Giờ mà tờ phiếu này vượt qua từng ải kiểm duyệt.'},
+                    {name: 'rejection_reason', type: 'TEXT', desc: 'Nếu phiếu bị Cố vấn trả về (Reject), Cố vấn phải ghi lý do vào đây.'},
+                    {name: 'rejected_by_step', type: 'SMALLINT', desc: 'Cờ đánh dấu phiếu bị đuổi về ở cửa ải nào.'},
+                    {name: 'created_at, updated_at', type: 'TIMESTAMP', desc: 'Timestamps.'},
+                    {fk: true, name: 'enrollment_id', type: 'VARCHAR(36)', desc: 'Khóa ngoại cực kỳ quan trọng nối vào semester_enrollments (biết ngay phiếu của ai, học kỳ mấy, lớp nào).'}
+                ])
+            },
+            score_details: { id: 'score_details', phase: 1, group: 'score', label: '<b>score_details</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> scoring_sheet_id\n<b>FK</b> criteria_id\nnote: <i>TEXT</i>',
+                popup: makePopupContent('score_details', 'Chi Tiết Dòng Tiêu Chí', 'Mỗi Phiếu điểm bao gồm 40-50 tiêu chí cộng/trừ. Bảng này đại diện cho MỘT DÒNG TIÊU CHÍ trong số đó.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'scoring_sheet_id', type: 'VARCHAR(36)', desc: 'Báo danh thuộc Phiếu Điểm mẹ nào.'},
+                    {fk: true, name: 'criteria_id', type: 'INT', desc: 'Đang chấm điểm cho Tiêu chí mã số mấy (VD: Tham gia CLB).'},
+                    {name: 'created_at, updated_at', type: 'TIMESTAMP', desc: 'Timestamps sinh theo hệ thống.'},
+                    {name: 'note', type: 'TEXT', desc: 'Ghi chú văn bản. Nơi SV gõ giải trình (Em đi trễ vì kẹt xe).'},
+                    {name: 'proof_url', type: 'TEXT', desc: 'Đường dẫn Upload minh chứng nhanh, dùng khi không cần File vật lý quá nặng.'}
+                ])
+            },
+            score_entries: { id: 'score_entries', phase: 1, group: 'score', label: '<b>score_entries</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> score_detail_id\nscorer_role: <i>ENUM</i>\nscore: <i>NUMERIC</i>',
+                popup: makePopupContent('score_entries', 'Bút Toán Ghi Điểm (Master Piece)', 'Thiết kế đột phá nhất đồ án! Thay vì update đè lên 1 cột điểm, đồ án INSERT từng dòng riêng rẽ cho từng người chấm. Dễ dàng so sánh đối chiếu "Sinh viên chấm 10, Cố vấn giáng xuống 5".', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính bút toán.'},
+                    {fk: true, name: 'score_detail_id', type: 'VARCHAR(36)', desc: 'Bút toán này thuộc về dòng tiêu chí nào.'},
+                    {name: 'scorer_role', type: 'ENUM', desc: 'Đánh dấu bản quyền: Ai đã chấm con điểm này? (STUDENT, CLASS_COMMITTEE, ADVISOR).'},
+                    {name: 'score', type: 'NUMERIC(5,2)', desc: 'Giá trị điểm thực tế cấp cho tiêu chí đó.'},
+                    {name: 'scored_at', type: 'TIMESTAMP', desc: 'Thời điểm click nút chấm điểm.'}
+                ])
+            },
+            evidences: { id: 'evidences', phase: 1, group: 'score', label: '<b>evidences</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> scoring_sheet_id\nfile_url: <i>VARCHAR</i>\nfile_size',
+                popup: makePopupContent('evidences', 'Kho Minh Chứng Vật Lý', 'Bảng độc lập chuyên quản lý các hình ảnh giấy khen, chứng nhận nộp kèm Phiếu điểm. Đạt chuẩn 1NF vì không gộp nhiều file vào 1 mảng chữ.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'scoring_sheet_id', type: 'VARCHAR(36)', desc: 'Minh chứng này nộp cho Phiếu điểm nào.'},
+                    {fk: true, name: 'criteria_id', type: 'INT', desc: 'Tùy chọn trỏ đích danh vào 1 tiêu chí cần minh chứng. Có thể NULL nếu minh chứng dùng chung.'},
+                    {name: 'file_name', type: 'VARCHAR(255)', desc: 'Tên file gốc do user upload.'},
+                    {name: 'file_url', type: 'VARCHAR(500)', desc: 'Đường dẫn tuyệt đối lưu trên CDN / AWS S3.'},
+                    {name: 'file_type', type: 'VARCHAR(50)', desc: 'MIME Type để phân loại (image/jpeg, application/pdf).'},
+                    {name: 'file_size', type: 'INT', desc: 'Dung lượng (Bytes). Cực kỳ quan trọng để tính tổng băng thông và giới hạn rác.'},
+                    {name: 'description', type: 'TEXT', desc: 'Ghi chú cho bức ảnh.'},
+                    {name: 'uploaded_at', type: 'TIMESTAMP', desc: 'Thời gian tải lên.'}
+                ])
+            },
+
+            // ================== PHASE 2: CRITERIA & LOGS ==================
+            criteria_versions: { id: 'criteria_versions', phase: 2, group: 'criteria', label: '<b>criteria_versions</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> semester_id\nversion: <i>INT</i>',
+                popup: makePopupContent('criteria_versions', 'Phiên Bản Quy Chế Đánh Giá', 'Tránh hiệu ứng Domino phá hủy dữ liệu. Mỗi năm Trường đổi luật (Quy chế) cộng điểm 1 lần, version mới sinh ra giữ nguyên data năm cũ an toàn.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'semester_id', type: 'VARCHAR(36)', desc: 'Quy chế này được mang ra áp dụng từ Học kỳ nào trở đi.'},
+                    {name: 'version', type: 'INT', desc: 'Phiên bản quy chế (VD: Version 1, 2, 3).'},
+                    {name: 'is_active', type: 'SMALLINT', desc: 'Đánh dấu quy chế hiện hành (1) hay đã là quá khứ (0).'},
+                    {name: 'applied_at', type: 'TIMESTAMP', desc: 'Ngày chính thức ban hành.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Ngày nhập hệ thống.'}
+                ])
+            },
+            criteria_categories: { id: 'criteria_categories', phase: 2, group: 'criteria', label: '<b>criteria_categories</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> criteria_version_id\nmax_score: <i>REAL</i>',
+                popup: makePopupContent('criteria_categories', 'Phân Nhóm Tiêu Chí (Đề mục lớn)', 'Mục lớn nhất trong tờ Phiếu điểm (VD: I. Đánh giá ý thức học tập). Nó kiểm soát ngưỡng điểm trần.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'criteria_version_id', type: 'VARCHAR(36)', desc: 'Nhóm này thuộc về Version Quy chế nào.'},
+                    {name: 'code', type: 'VARCHAR(10)', desc: 'Mã số nhóm (Mục I, II, III).'},
+                    {name: 'name', type: 'VARCHAR(200)', desc: 'Tên nhóm (Đánh giá học tập).'},
+                    {name: 'description', type: 'TEXT', desc: 'Diễn giải thêm của nhóm.'},
+                    {name: 'max_score', type: 'REAL', desc: 'Ràng buộc quan trọng! Mức điểm tối đa. Nếu SV có 10 thành tích ở nhóm này, cộng lại ra 30 điểm thì cũng chỉ được tính Max là 20 điểm.'},
+                    {name: 'sort_order', type: 'INT', desc: 'Sắp xếp UI từ trên xuống dưới.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Ngày tạo.'}
+                ])
+            },
+            criteria: { id: 'criteria', phase: 2, group: 'criteria', label: '<b>criteria</b>\n─────────────────\n<b>PK</b> id: <i>INT</i>\n<b>FK</b> category_id\nscore_type: <i>ENUM</i>',
+                popup: makePopupContent('criteria', 'Danh Sách Tiêu Chí Con', 'Chi tiết các đầu mục tính điểm. Có hệ thống phân nhánh mẹ-con và định nghĩa kiểu chấm điểm cực kỳ uyển chuyển.', [
+                    {pk: true, name: 'id', type: 'INT', desc: 'Khóa chính. Bảng cấu hình nên xài INT cho nhẹ.'},
+                    {fk: true, name: 'category_id', type: 'VARCHAR(36)', desc: 'Thuộc về Mục Lớn nào.'},
+                    {name: 'parent_id', type: 'INT', desc: 'Đệ quy chính nó (Self-join). Tạo cây phân cấp (Tiêu chí lớn -> tiêu chí nhỏ).'},
+                    {name: 'code', type: 'VARCHAR(20)', desc: 'Mã tiểu mục (1.a, 2.b).'},
+                    {name: 'content', type: 'VARCHAR(500)', desc: 'Nội dung (Bị kỷ luật cấp trường).'},
+                    {name: 'max_points', type: 'REAL', desc: 'Điểm cộng tối đa cho mục này.'},
+                    {name: 'min_score', type: 'REAL', desc: 'Điểm thấp nhất (Thường là số Âm dành cho Tiêu chí bị trừ điểm).'},
+                    {name: 'score_type', type: 'ENUM', desc: 'Kiểu chấm: RANGE (Điểm kéo từ 0-5), BOOLEAN (Đạt hoặc Không đạt), DEDUCTION (Trừ điểm).'},
+                    {name: 'score_options', type: 'JSONB', desc: 'Dùng cho dạng trắc nghiệm. Lưu JSON các Option (Mức A=2đ, Mức B=5đ).'},
+                    {name: 'require_evidence', type: 'SMALLINT', desc: 'Cờ (Flag) ép buộc người dùng bắt buộc phải Up ảnh lên evidences mới cho Nộp bài.'},
+                    {name: 'evidence_guide', type: 'TEXT', desc: 'Gợi ý nộp ảnh.'},
+                    {name: 'sort_order, is_active, created_at, updated_at', type: 'Khác', desc: 'Cột hệ thống.'}
+                ])
+            },
+            review_actions: { id: 'review_actions', phase: 2, group: 'log', label: '<b>review_actions</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> scoring_sheet_id\nfrom_status\nto_status',
+                popup: makePopupContent('review_actions', 'Nhật Ký Hành Động Duyệt', 'Ai? Đã duyệt lúc nào? Đẩy Phiếu điểm từ Trạng thái A sang Trạng thái B. Dùng để thống kê năng suất Cố vấn.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'scoring_sheet_id', type: 'VARCHAR(36)', desc: 'Giao dịch duyệt xảy ra trên Phiếu điểm nào.'},
+                    {fk: true, name: 'reviewer_id', type: 'VARCHAR(36)', desc: 'Khóa ngoại trỏ về user_id của người đã bấm Duyệt/Từ chối.'},
+                    {name: 'action', type: 'ENUM', desc: 'Loại thao tác: APPROVE, REJECT, SUBMIT, RETURN.'},
+                    {name: 'from_status', type: 'VARCHAR(30)', desc: 'Trạng thái CŨ của phiếu điểm (VD: Đang nộp).'},
+                    {name: 'to_status', type: 'VARCHAR(30)', desc: 'Trạng thái MỚI của phiếu điểm (VD: Cố vấn đã duyệt).'},
+                    {name: 'comment', type: 'TEXT', desc: 'Lời nhắn nếu trả hồ sơ về.'},
+                    {name: 'metadata', type: 'JSONB', desc: 'Lưu log thiết bị, IP duyệt để chống cãi lộn.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Thời điểm click nút.'}
+                ])
+            },
+            score_adjustment_logs: { id: 'score_adjustment_logs', phase: 2, group: 'log', label: '<b>score_adjustment_logs</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> score_detail_id\nold_score\nnew_score',
+                popup: makePopupContent('score_adjustment_logs', 'Nhật Ký Chỉnh Sửa Điểm (Trigger Logs)', 'Bảng bảo mật Tối cao. Chuyên chứa dữ liệu đổ về tự động từ TRIGGER khi có ai đó DÁM UPDATE bảng điểm gốc.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'score_detail_id', type: 'VARCHAR(36)', desc: 'Trỏ vào ID của Dòng điểm bị sửa.'},
+                    {fk: true, name: 'adjusted_by_id', type: 'VARCHAR(36)', desc: 'Bắt quả tang User ID đã sửa điểm.'},
+                    {name: 'old_score', type: 'NUMERIC(5,1)', desc: 'Lưu Điểm Cũ (Biến OLD trong Trigger).'},
+                    {name: 'new_score', type: 'NUMERIC(5,1)', desc: 'Lưu Điểm Mới (Biến NEW trong Trigger).'},
+                    {name: 'reason', type: 'TEXT', desc: 'Bắt buộc Cố vấn phải gõ lý do mới cho sửa.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Ngày giờ can thiệp.'}
+                ])
+            },
+            appeals: { id: 'appeals', phase: 2, group: 'log', label: '<b>appeals</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> scoring_sheet_id\nreason: <i>TEXT</i>\nstatus: <i>ENUM</i>',
+                popup: makePopupContent('appeals', 'Đơn Khiếu Nại Hành Chính', 'Lưu đơn từ của Sinh viên kiện lên Khoa nếu có bất đồng về điểm số do Cố vấn quyết định.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'scoring_sheet_id', type: 'VARCHAR(36)', desc: 'Đang kiện Phiếu điểm nào.'},
+                    {name: 'reason', type: 'TEXT', desc: 'Trình bày lý do kiện.'},
+                    {name: 'evidence_note', type: 'TEXT', desc: 'Bằng chứng kèm theo (Em có đi hiến máu nhưng BCS không cộng).'},
+                    {name: 'status', type: 'ENUM', desc: 'Workflow giải quyết đơn (PENDING, RESOLVED, REJECTED).'},
+                    {name: 'resolved_by', type: 'VARCHAR(36)', desc: 'Giảng viên/Chuyên viên thụ lý đơn.'},
+                    {name: 'resolution', type: 'TEXT', desc: 'Biên bản hướng giải quyết.'},
+                    {name: 'created_at, resolved_at', type: 'TIMESTAMP', desc: 'Mốc thời gian kiện và xử lý xong.'},
+                    {name: 'dept_decision, dept_new_score...', type: 'Mix', desc: 'Quyết định cuối cùng (Cộng lại bao nhiêu điểm).'}
+                ])
+            },
+            comments: { id: 'comments', phase: 2, group: 'log', label: '<b>comments</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> scoring_sheet_id\n<b>FK</b> user_id\ncontent',
+                popup: makePopupContent('comments', 'Kênh Trao Đổi (Chat)', 'Cho phép thả bình luận giống Mạng Xã Hội ngay trên từng phiếu điểm. Tránh việc gọi điện/Zalo trôi tin nhắn.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'scoring_sheet_id', type: 'VARCHAR(36)', desc: 'Room chat của phiếu điểm nào.'},
+                    {fk: true, name: 'user_id', type: 'VARCHAR(36)', desc: 'Ai là người gõ chữ.'},
+                    {name: 'content', type: 'TEXT', desc: 'Nội dung.'},
+                    {name: 'parent_id', type: 'VARCHAR(36)', desc: 'Đệ quy tạo tính năng Reply comment (Phản hồi bình luận).'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Thời điểm nhắn.'}
+                ])
+            },
+            audit_logs: { id: 'audit_logs', phase: 2, group: 'sys', label: '<b>audit_logs</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\naction: <i>VARCHAR</i>\nold_value: <i>JSONB</i>',
+                popup: makePopupContent('audit_logs', 'Hộp Đen Hệ Thống (Audit Data)', 'Bảng log cấp thấp nhất theo chuẩn Enterprise. Ghi nhận lại MỌI THAO TÁC CẤP CAO DƯỚI DẠNG JSON. Lỡ Admin lỡ tay xóa nguyên 1 Lớp Học, Admin có thể mở JSON ra khôi phục lại (Undo).', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {name: 'actor_id', type: 'VARCHAR(36)', desc: 'Người ra tay (Admin ID).'},
+                    {name: 'action', type: 'VARCHAR(100)', desc: 'Lệnh gì (CREATE, UPDATE, DELETE).'},
+                    {name: 'entity_type', type: 'VARCHAR(50)', desc: 'Đánh vào Bảng nào (classes, departments).'},
+                    {name: 'entity_id', type: 'VARCHAR(36)', desc: 'ID của record bị đánh.'},
+                    {name: 'old_value', type: 'JSONB', desc: 'Tuyệt tác! Lưu lại nguyên văn chuỗi Object JSON CŨ TRƯỚC KHI BỊ XÓA/SỬA.'},
+                    {name: 'new_value', type: 'JSONB', desc: 'Chuỗi JSON mới sau khi sửa.'},
+                    {name: 'ip_address, user_agent', type: 'VARCHAR', desc: 'IP và Trình duyệt của thủ phạm.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Thời điểm truy vết.'}
+                ])
+            },
+            notifications: { id: 'notifications', phase: 2, group: 'sys', label: '<b>notifications</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> user_id\ncontent: <i>TEXT</i>',
+                popup: makePopupContent('notifications', 'Trung Tâm Thông Báo Nhắc Nhở', 'Bắn thông báo (Push/Bell) tới người dùng khi có sự kiện (Gần tới hạn nộp, Phiếu bị trả về).', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {fk: true, name: 'user_id', type: 'VARCHAR(36)', desc: 'Chuông báo trên account của ai.'},
+                    {name: 'type', type: 'ENUM', desc: 'SYSTEM, ACTION_REQUIRED, SCORE_APPROVED... Phân màu UI.'},
+                    {name: 'title', type: 'VARCHAR(200)', desc: 'Tiêu đề ngắn.'},
+                    {name: 'content', type: 'TEXT', desc: 'Nội dung hướng dẫn xử lý.'},
+                    {name: 'data', type: 'JSONB', desc: 'Lưu đường link Route UI để khi click báo cáo sẽ nhảy thẳng tới Phiếu điểm đó.'},
+                    {name: 'is_read', type: 'SMALLINT', desc: 'Đánh dấu chấm đỏ tắt/bật.'},
+                    {name: 'read_at', type: 'TIMESTAMP', desc: 'Thời gian user click xem.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Giờ gửi tin.'}
+                ])
+            },
+            refresh_tokens: { id: 'refresh_tokens', phase: 2, group: 'sys', label: '<b>refresh_tokens</b>\n─────────────────\n<b>PK</b> id: <i>UUID</i>\n<b>FK</b> user_id\ntoken: <i>VARCHAR</i>',
+                popup: makePopupContent('refresh_tokens', 'Quản Trị Token Phiên Đăng Nhập', 'Lớp khiên bảo mật JWT. Giải quyết yếu điểm của JWT Stateless bằng cách lưu Refresh Token ở CSDL để có thể "Đá" người dùng ra khi cần thiết.', [
+                    {pk: true, name: 'id', type: 'VARCHAR(36)', desc: 'Khóa chính.'},
+                    {name: 'token', type: 'VARCHAR(500)', desc: 'Chứa chuỗi băm của Refresh Token gửi từ Client.'},
+                    {fk: true, name: 'user_id', type: 'VARCHAR(36)', desc: 'Ai là chủ token này.'},
+                    {name: 'expires_at', type: 'TIMESTAMP', desc: 'Giờ G hết hạn. Buộc user đăng nhập lại.'},
+                    {name: 'created_at', type: 'TIMESTAMP', desc: 'Ngày xuất bản Token.'},
+                    {name: 'revoked_at', type: 'TIMESTAMP', desc: 'Rất quan trọng! Nếu phát hiện Hack, cập nhật cột này, Token lập tức bị cấm cửa (Revoked) từ chối tái sinh JWT Access.'}
+                ])
+            }
+        };
+
+        const dbEdges = [
+            { from: 'classes', to: 'departments', label: '1-N' },
+            { from: 'class_roles', to: 'users', label: '1-N' },
+            { from: 'class_roles', to: 'classes', label: '1-N' },
+            { from: 'semester_enrollments', to: 'users', label: '1-N' },
+            { from: 'semester_enrollments', to: 'semesters', label: '1-N' },
+            { from: 'semester_enrollments', to: 'classes', label: '1-N' },
+            { from: 'scoring_sheets', to: 'semester_enrollments', label: '1-1' },
+            { from: 'score_details', to: 'scoring_sheets', label: '1-N' },
+            { from: 'score_entries', to: 'score_details', label: '1-N' },
+            { from: 'evidences', to: 'scoring_sheets', label: '1-N' },
+            
+            { from: 'criteria_categories', to: 'criteria_versions', label: '1-N' },
+            { from: 'criteria', to: 'criteria_categories', label: '1-N' },
+            
+            { from: 'score_details', to: 'criteria', label: '1-N', cross: true },
+            { from: 'evidences', to: 'criteria', label: '1-N', cross: true },
+            { from: 'criteria_versions', to: 'semesters', label: '1-1', cross: true },
+            { from: 'review_actions', to: 'scoring_sheets', label: '1-N', cross: true },
+            { from: 'review_actions', to: 'users', label: '1-N', cross: true },
+            { from: 'score_adjustment_logs', to: 'score_details', label: '1-N', cross: true },
+            { from: 'appeals', to: 'scoring_sheets', label: '1-N', cross: true },
+            { from: 'comments', to: 'scoring_sheets', label: '1-N', cross: true },
+            { from: 'comments', to: 'users', label: '1-N', cross: true },
+            { from: 'notifications', to: 'users', label: '1-N', cross: true },
+            { from: 'refresh_tokens', to: 'users', label: '1-N', cross: true }
+        ];
+
+        const phase1Order = ['departments', 'classes', 'users', 'class_roles', 'semesters', 'semester_enrollments', 'scoring_sheets', 'score_details', 'score_entries', 'evidences'];
+        const phase2Order = ['criteria_versions', 'criteria_categories', 'criteria', 'review_actions', 'score_adjustment_logs', 'appeals', 'comments', 'audit_logs', 'notifications', 'refresh_tokens'];
+
+        const groupsCfg = {
+            org: { color: { background: '#f8fafc', border: '#3b82f6' }, shape: 'box', borderWidth: 2 },
+            auth: { color: { background: '#f8fafc', border: '#ec4899' }, shape: 'box', borderWidth: 2 },
+            time: { color: { background: '#f8fafc', border: '#eab308' }, shape: 'box', borderWidth: 2 },
+            score: { color: { background: '#f8fafc', border: '#6366f1' }, shape: 'box', borderWidth: 2 },
+            criteria: { color: { background: '#f8fafc', border: '#10b981' }, shape: 'box', borderWidth: 2 },
+            log: { color: { background: '#f8fafc', border: '#f97316' }, shape: 'box', borderWidth: 2 },
+            sys: { color: { background: '#f8fafc', border: '#64748b' }, shape: 'box', borderWidth: 2 }
+        };
+
+        /* ======================== APP LOGIC ======================== */
+        let network = null;
+        let nodesDataset = new vis.DataSet([]);
+        let edgesDataset = new vis.DataSet([]);
+        
+        let currentPhase = 1;
+        let currentStepIndex = 0;
+        
+        function initNetwork() {
+            const container = document.getElementById('network-container');
+            const data = { nodes: nodesDataset, edges: edgesDataset };
+            const options = {
+                nodes: { font: nodeFont, shadow: { enabled: true, color: 'rgba(0,0,0,0.15)' }, borderRadius: 6, margin: 15 },
+                edges: { arrows: 'to', color: '#94a3b8', font: { align: 'middle', size: 12, background: '#fff' }, smooth: { type: 'continuous' } },
+                groups: groupsCfg,
+                physics: { solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -120, centralGravity: 0.015, springLength: 220 } }
+            };
+            network = new vis.Network(container, data, options);
+            
+            network.on("click", function(params) {
+                if (params.nodes.length > 0) {
+                    showNodePopup(params.nodes[0]);
+                }
+            });
+        }
+
+        function showNodePopup(nodeId) {
+            const data = dbNodes[nodeId];
+            Swal.fire({
+                title: `<span style="font-family:'Montserrat'; color:#1e293b; font-weight:800; font-size:1.4em;">${data.id}</span>`,
+                html: data.popup,
+                confirmButtonText: 'Đã phân tích xong',
+                confirmButtonColor: '#3b82f6',
+                showClass: { popup: 'animate__animated animate__fadeIn animate__faster' },
+            });
+        }
+
+        function setPhase(phase) {
+            currentPhase = phase;
+            currentStepIndex = 0;
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-phase' + phase).classList.add('active');
+            
+            const bottomPanel = document.getElementById('bottom-panel');
+            const sqlContainer = document.getElementById('sql-container');
+            const netContainer = document.getElementById('network-container');
+            const nfContainer = document.getElementById('nf-container');
+
+            // Hide all
+            bottomPanel.classList.add('hidden');
+            sqlContainer.classList.add('hidden');
+            netContainer.classList.add('hidden');
+            nfContainer.classList.add('hidden');
+
+            if (phase === 4) {
+                nfContainer.classList.remove('hidden');
+                return;
+            } else if (phase === 5) {
+                sqlContainer.classList.remove('hidden');
+                return;
+            } else {
+                netContainer.classList.remove('hidden');
+            }
+
+            nodesDataset.clear();
+            edgesDataset.clear();
+            
+            if (phase === 3) {
+                Object.keys(dbNodes).forEach(k => nodesDataset.add(dbNodes[k]));
+                dbEdges.forEach(e => edgesDataset.add(e));
+                setTimeout(() => network.fit(), 500);
+            } else {
+                bottomPanel.classList.remove('hidden');
+                updateStepUI();
+            }
+        }
+
+        function nextStep() {
+            let orderArr = currentPhase === 1 ? phase1Order : phase2Order;
+            if (currentStepIndex >= orderArr.length) return;
+            
+            let newNodeId = orderArr[currentStepIndex];
+            let newNode = Object.assign({}, dbNodes[newNodeId]);
+            nodesDataset.add(newNode);
+            
+            let newEdges = dbEdges.filter(e => !e.cross && (
+                (e.from === newNodeId && nodesDataset.get(e.to)) || 
+                (e.to === newNodeId && nodesDataset.get(e.from))
+            ));
+            newEdges.forEach(e => edgesDataset.add(e));
+            
+            currentStepIndex++;
+            updateStepUI();
+            network.focus(newNodeId, { scale: 1.1, animation: { duration: 600, easingFunction: 'easeInOutQuad' }});
+            
+            setTimeout(() => showNodePopup(newNodeId), 700);
+        }
+
+        function updateStepUI() {
+            let orderArr = currentPhase === 1 ? phase1Order : phase2Order;
+            document.getElementById('step-counter').innerText = `Tiến Trình: ${currentStepIndex}/${orderArr.length}`;
+            let btn = document.getElementById('btn-next-step');
+            
+            if (currentStepIndex >= orderArr.length) {
+                btn.innerText = "Đã rớt đủ 10 Bảng";
+                btn.disabled = true;
+            } else {
+                btn.innerText = `Thả Bảng [${orderArr[currentStepIndex]}] 🚀`;
+                btn.disabled = false;
+            }
+        }
+
+        // --- SQL POPUP ENHANCED ---
+        function showSql(type) {
+            let title = "", theory = "", html = "";
+            switch(type) {
+                case 'ddl':
+                    title = "Ngôn Ngữ Định Nghĩa Dữ Liệu (DDL) & Ràng Buộc";
+                    theory = `<b>📖 Khái Niệm Lý Thuyết:</b> DDL (Data Definition Language) bao gồm các lệnh định nghĩa cấu trúc dữ liệu (CREATE, ALTER, DROP). Khi định nghĩa bảng, ta cài cắm các Ràng buộc toàn vẹn (Constraints) như PK, FK, CHECK, UNIQUE để bảo vệ CSDL từ mức thấp nhất.`;
+                    html = `
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Áp Dụng Trong Đồ Án:</p>
+<pre><code class="language-sql">/* Thiết lập ENUM khóa cứng các giá trị hợp lệ, 
+   tránh nhập sai chính tả (vd: gõ lộn 'STUDENT' thành 'STudent') */
+CREATE TYPE users_role AS ENUM ('STUDENT', 'CLASS_COMMITTEE', 'ADVISOR');
+
+/* DDL Tạo Bảng với đầy đủ Constraint hạng nặng */
+CREATE TABLE public.classes (
+    -- UUID tự sinh an toàn bảo mật
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+    department_id VARCHAR(36) NOT NULL,
+    -- Mã lớp không được trùng lặp toàn trường
+    code VARCHAR(20) NOT NULL UNIQUE,  
+    name VARCHAR(100) NOT NULL,
+    
+    -- Khóa ngoại đảm bảo tính Toàn Vẹn Tham Chiếu (Referential Integrity)
+    CONSTRAINT fk_class_dept 
+       FOREIGN KEY (department_id) REFERENCES public.departments(id)
+       -- Cấm xóa 1 Khoa nếu Khoa đó đang có Lớp học (Bảo vệ trẻ mồ côi)
+       ON DELETE RESTRICT 
+);
+
+-- CHECK constraint ngăn chặn việc Cố vấn nhập điểm ÂM (Vô lý)
+ALTER TABLE score_entries ADD CONSTRAINT chk_score_positive CHECK (score >= 0);
+</code></pre>
+                    `;
+                    break;
+                case 'trigger':
+                    title = "Triggers (Bộ Kích Hoạt Tự Động)";
+                    theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Trigger là các khối lệnh SQL được "gắn" vào một Bảng. Nó nằm im lìm và chỉ TỰ ĐỘNG BÙNG NỔ (Kích hoạt) khi có một sự kiện DML (INSERT, UPDATE, DELETE) tác động vào bảng đó. Nó hoạt động ngầm hoàn toàn dưới Database Engine.`;
+                    html = `
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Lợi ích: Code Backend (Java/Node) có thể có Lỗ hổng quên ghi Log. Còn Trigger là "Chốt chặn cuối cùng" bảo vệ Database.</p>
+<pre><code class="language-sql">/* BƯỚC 1: Khai báo Hàm Trigger 
+   Khái niệm: Biến NEW chứa dữ liệu MỚI CHUẨN BỊ GHI VÀO Ổ CỨNG.
+   Biến OLD chứa dữ liệu CŨ ĐANG NẰM TRONG Ổ CỨNG. */
+CREATE FUNCTION log_score_changes() RETURNS trigger AS $$
+BEGIN
+    -- Bắn dữ liệu Cũ và Mới vào bảng Log (score_adjustment_logs)
+    INSERT INTO score_adjustment_logs 
+        (score_detail_id, old_score, new_score, adjusted_by_id)
+    VALUES 
+        (NEW.score_detail_id, OLD.score, NEW.score, NEW.adjusted_user_id);
+    -- Cấp phép cho lệnh UPDATE ban đầu được tiếp tục chạy
+    RETURN NEW; 
+END;
+$$ LANGUAGE plpgsql;
+
+/* BƯỚC 2: Gắn Họng Súng (Trigger) vào Bảng điểm
+   AFTER UPDATE: Chỉ bắn sau khi Update thành công.
+   Lệnh WHEN: Nếu người dùng nhấn Cập Nhật mà điểm chả khác gì thì ĐỪNG kích hoạt! */
+CREATE TRIGGER trg_log_score_adjustment
+AFTER UPDATE OF score ON public.score_entries
+FOR EACH ROW
+WHEN (OLD.score IS DISTINCT FROM NEW.score)
+EXECUTE FUNCTION log_score_changes();
+</code></pre>
+                    `;
+                    break;
+                case 'view':
+                    title = "Views (Khung Nhìn Ảo / Bảng Ảo)";
+                    theory = `<b>📖 Khái Niệm Lý Thuyết:</b> View bản chất là một câu lệnh SELECT được "lưu lại" dưới dạng một Bảng ảo. Dữ liệu trong View không được ghi ra ổ cứng, mà nó sẽ tự động tính toán (Pull) từ các bảng gốc mỗi khi ta truy vấn nó.`;
+                    html = `
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Mục Đích Trong Đồ Án: 1. Đóng gói Query phức tạp (JOIN 5 bảng). 2. Che giấu Dữ liệu nhạy cảm (Không lộ Mật khẩu, Số điện thoại).</p>
+<pre><code class="language-sql">/* Tạo Khung nhìn tính sẵn Điểm trung bình cho Trưởng Khoa */
+CREATE OR REPLACE VIEW vw_class_performance AS
+SELECT 
+    c.id AS class_id, 
+    c.name AS class_name,
+    COUNT(u.id) AS total_students,
+    -- Gom nhóm và Tính trung bình AVG, làm tròn 2 chữ số thập phân
+    ROUND(AVG(ss.final_total), 2) AS average_score 
+FROM classes c
+JOIN semester_enrollments se ON c.id = se.class_id
+JOIN scoring_sheets ss ON se.id = ss.enrollment_id
+JOIN users u ON se.user_id = u.id
+WHERE ss.status = 'FINALIZED'
+GROUP BY c.id, c.name;
+
+/* Phân quyền mức CSDL: Chỉ cấp quyền đọc View này cho Role Quản lý. 
+   Họ không được phép đọc thẳng bảng users! */
+GRANT SELECT ON vw_class_performance TO role_department_head;
+
+/* Truy vấn qua View siêu gọn gàng: */
+SELECT * FROM vw_class_performance ORDER BY average_score DESC;
+</code></pre>
+                    `;
+                    break;
+                case 'proc':
+                    title = "Stored Procedures / Functions (Thủ Tục Lưu Trữ)";
+                    theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Là một đoạn code logic hoàn chỉnh (có IF ELSE, Vòng lặp, Khai báo biến) được lưu biên dịch sẵn bên trong Hệ Quản Trị CSDL. Gọi chạy như gọi 1 hàm lập trình.`;
+                    html = `
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Tối ưu Hiệu năng: Đẩy logic cộng điểm xuống Server DB. Tránh việc tải hàng ngàn dòng điểm lên App Server (Java/Node) để cộng tay, gây nghẽn Mạng (Network Traffic).</p>
+<pre><code class="language-sql">/* Hàm Tính Tổng Điểm cho Cố Vấn chấm (PL/pgSQL) */
+CREATE OR REPLACE FUNCTION calculate_advisor_total(sheet_id VARCHAR) 
+RETURNS NUMERIC AS $$
+DECLARE
+    -- Khai báo biến
+    total NUMERIC := 0;
+BEGIN
+    /* Lệnh tính tổng. 
+       COALESCE: Nếu SUM() bị NULL (Chưa chấm mục nào), ép nó về 0 để khỏi bị lỗi toán học */
+    SELECT COALESCE(SUM(score), 0) INTO total
+    FROM score_entries e
+    JOIN score_details d ON e.score_detail_id = d.id
+    WHERE d.scoring_sheet_id = sheet_id AND e.scorer_role = 'ADVISOR';
+    
+    /* Auto UPDATE tổng điểm vừa tính được vào bảng Phiếu điểm cha */
+    UPDATE scoring_sheets 
+    SET advisor_total = total 
+    WHERE id = sheet_id;
+    
+    -- Trả kết quả về
+    RETURN total;
+END;
+$$ LANGUAGE plpgsql;
+</code></pre>
+                    `;
+                    break;
+                case 'transaction':
+                    title = "Transaction Control & Thuộc tính ACID";
+                    theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Transaction (Giao dịch) đóng gói nhiều câu lệnh SQL lại thành 1 cục Nguyên tử (Atomicity). Nguyên tắc "All or Nothing": Một là thành công tất cả, Hai là thất bại thì Undo (ROLLBACK) tất cả, không để lại rác dữ liệu. Đảm bảo 4 thuộc tính ACID (Atomicity, Consistency, Isolation, Durability).`;
+                    html = `
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Áp dụng: Nghiệp vụ Duyệt Điểm bao gồm 3 hành động độc lập. Bắt buộc phải xài Transaction.</p>
+<pre><code class="language-sql">-- Khởi động Giao dịch (Mở chốt khóa Atomicity)
+BEGIN; 
+
+/* Lệnh 1: UPDATE Trạng thái Phiếu sang ADVISOR_APPROVED */
+UPDATE scoring_sheets SET status = 'ADVISOR_APPROVED' WHERE id = 'uuid-123';
+
+/* Lệnh 2: Lưu Log hành vi của Cố vấn vào hệ thống Audit */
+INSERT INTO review_actions (scoring_sheet_id, reviewer_id, action) 
+VALUES ('uuid-123', 'uuid-advisor', 'APPROVE');
+
+/* Lệnh 3: Tạo thông báo Push Notification cho Sinh viên */
+INSERT INTO notifications (user_id, title, content) 
+VALUES ('uuid-sv', 'Duyệt thành công', 'Cố vấn đã duyệt phiếu của bạn');
+
+-- Nếu 3 lệnh chạy mượt mà -> Ghi vĩnh viễn vào ổ cứng (Durability)
+COMMIT; 
+
+/* NGOẠI LỆ: Nếu ổ cứng đầy ở Lệnh 3, Hệ thống sẽ tự động bắt Lỗi và phát lệnh:
+   ROLLBACK; -> Hủy bỏ Lệnh 1 và 2. Data trở về trạng thái ban đầu (Nhất quán - Consistency). */
+</code></pre>
+                    `;
+                    break;
+                case 'complex':
+                    title = "Complex Queries (Truy Vấn Phức Tạp Đa Chiều)";
+                    theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Việc khai thác dữ liệu từ các CSDL chuẩn 3NF yêu cầu kỹ thuật JOIN (kết nối bảng), GROUP BY (gom nhóm thống kê), HAVING (lọc dữ liệu sau gom nhóm) và SUBQUERY (Truy vấn lồng) để ráp nối lại các mảnh vỡ thông tin.`;
+                    html = `
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Yêu cầu Bài Toán: Viết Query tìm ra Top 1 Sinh Viên (Kẻ có điểm rèn luyện Cao nhất) của MỖI KHOA (Không phân biệt lớp).</p>
+<pre><code class="language-sql">/* JOIN 5 Bảng dọc theo luồng Cấu trúc Tổ chức để ra kết quả */
+SELECT u.student_id, u.full_name, d.name AS Khoa, s.final_total
+FROM users u
+JOIN semester_enrollments se ON u.id = se.user_id
+JOIN scoring_sheets s ON se.id = s.enrollment_id
+JOIN classes c ON se.class_id = c.id
+JOIN departments d ON c.department_id = d.id
+WHERE s.status = 'FINALIZED'
+-- Gom nhóm theo từng sinh viên và Khoa của sinh viên đó
+GROUP BY u.student_id, u.full_name, d.id, d.name, s.final_total
+-- Mệnh đề HAVING kết hợp Truy Vấn Con (Correlated Subquery)
+HAVING s.final_total = (
+    /* Đi tìm Điểm Trần (MAX) của đúng Khoa đó (d.id).
+       Chỉ Sinh viên nào chạm mức MAX này mới được lọt qua màng lọc HAVING */
+    SELECT MAX(s2.final_total)
+    FROM scoring_sheets s2
+    JOIN semester_enrollments se2 ON s2.enrollment_id = se2.id
+    JOIN classes c2 ON se2.class_id = c2.id
+    WHERE c2.department_id = d.id -- Liên kết Tương Quan từ ngoài vào trong
+);
+</code></pre>
+                    `;
+                    break;
+            }
+
+            Swal.fire({
+                title: `<span style="font-family:'Inter'; font-weight: 800; color:#1e293b;">${title}</span>`,
+                html: `<div style="background: #f1f5f9; padding: 15px; border-radius: 8px; font-size: 0.95em; border-left: 4px solid #8b5cf6;">${theory}</div>${html}`,
+                width: '900px',
+                showConfirmButton: false,
+                showCloseButton: true,
+                didOpen: () => {
+                    document.querySelectorAll('.swal2-html-container pre code').forEach((el) => {
+                        hljs.highlightElement(el);
+                    });
+                }
+            });
+        }
+
+        // INIT APP
+        window.onload = () => {
+            initNetwork();
+            setPhase(1);
+        };
+    </script>
+</body>
+</html>
