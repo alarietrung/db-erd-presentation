@@ -90,8 +90,9 @@
                     <p class="mb-4 text-slate-700"><b>📖 Khái niệm Dễ hiểu:</b><br/> 
                     - <b>Chuẩn 1NF:</b> Bắt buộc mỗi ô dữ liệu chỉ được chứa ĐÚNG MỘT giá trị đơn lẻ (Nguyên tử hóa). Không được phép nhồi nhét mảng (Array) hay danh sách phân cách bởi dấu phẩy (Ví dụ: "anh1.jpg, anh2.jpg") vào chung một ô.<br/>
                     - <b>Chuẩn 2NF:</b> Nếu bảng sử dụng Khóa chính gộp từ nhiều cột (Ví dụ Khóa gồm Cột A + Cột B), thì mọi thông tin còn lại trong bảng phải phụ thuộc vào CẢ Cột A và Cột B, chứ không được phụ thuộc một nửa vào Cột A. Nếu chỉ phụ thuộc một nửa, bạn phải tách nó ra thành bảng khác. Việc này giúp chống lặp dữ liệu dư thừa.</p>
-                    <p class="text-slate-700"><b>👨‍💻 Phân tích Đồ án (Bám sát file SQL):</b><br/> 
-                    Trong bảng <code>score_details</code> (Chi tiết điểm), sinh viên cần nộp rất nhiều ảnh minh chứng. Thay vì gộp chung đường link hình ảnh thành một chuỗi (Vi phạm nghiêm trọng 1NF), cấu trúc SQL đồ án đã tách hẳn ra một bảng <code>evidences</code> riêng biệt với Khóa chính <code>id</code>. Mỗi hình ảnh là một hàng ngang rõ ràng. Mọi cột ghi chú trong <code>score_details</code> như <code>note</code> (Lời giải trình) đều phụ thuộc toàn vẹn vào Khóa chính <code>id</code>, giúp kiến trúc bảng đáp ứng xuất sắc tiêu chuẩn 2NF.</p>
+                    <p class="text-slate-700"><b>👨‍💻 Phân tích Đồ án (Bám sát kiến trúc Prisma/SQL):</b><br/> 
+                    Trong bảng <code>score_details</code> (Chi tiết điểm), sinh viên cần nộp rất nhiều ảnh minh chứng. Thay vì gộp chung đường link hình ảnh thành một chuỗi (Vi phạm nghiêm trọng 1NF), cấu trúc SQL đồ án đã tách hẳn ra một bảng <code>evidences</code> riêng biệt với Khóa chính <code>id</code>. Mỗi hình ảnh là một hàng ngang rõ ràng. <br/><br/>
+                    Thêm vào đó, mọi cột ghi chú trong <code>score_details</code> như <code>note</code> (Lời giải trình) đều phụ thuộc toàn vẹn vào Khóa chính <code>id</code> của dòng chi tiết đó, chứ không phụ thuộc vào mã sinh viên hay mã tiêu chí, giúp kiến trúc bảng đáp ứng xuất sắc tiêu chuẩn 2NF. Ngoài ra, việc lưu URL minh chứng tách biệt vào <code>evidences</code> còn giúp hệ thống dễ dàng mở rộng để quản lý siêu dữ liệu tập tin như tổng dung lượng tải lên (file_size) hoặc định dạng (file_type) mà không làm phình to hoặc rác bảng điểm gốc.</p>
                 </div>
 
                 <div class="nf-card border-l-4 border-l-blue-500">
@@ -113,7 +114,7 @@
                                 <li>Bảng <b>users</b>: Chỉ lưu dữ liệu cá nhân của người dùng.</li>
                                 <li><b>Sự gắn kết:</b> Dùng bảng trung gian <code>semester_enrollments</code> để ghép Sinh Viên vào Lớp ở một Học Kỳ cụ thể.</li>
                             </ul>
-                            <p class="text-sm mt-2 text-slate-600 font-bold">Lợi ích: Bất kể Lớp học hay Khoa có đổi tên bao nhiêu lần, Database Engine chỉ cần Update đúng một ô duy nhất ở bảng gốc, hệ thống 100% không bao giờ gặp sai lệch dữ liệu.</p>
+                            <p class="text-sm mt-2 text-slate-600 font-bold">Lợi ích: Bất kể Lớp học hay Khoa có đổi tên bao nhiêu lần, Database Engine chỉ cần Update đúng một ô duy nhất ở bảng gốc <code>departments</code> hoặc <code>classes</code>, hệ thống 100% không bao giờ gặp sai lệch dữ liệu. Việc này tối ưu hóa triệt để không gian đĩa cứng và bảo vệ tính toàn vẹn thông tin lâu dài.</p>
                         </div>
                     </div>
                 </div>
@@ -121,16 +122,23 @@
                 <div class="nf-card border-l-4 border-l-purple-500">
                     <div class="nf-title"><span class="nf-badge">BCNF</span> Boyce-Codd Normal Form (Đỉnh cao của Chuẩn hóa)</div>
                     <p class="mb-4 text-slate-700"><b>📖 Khái niệm Dễ hiểu:</b> BCNF là cấp độ chặt chẽ và nghiêm ngặt hơn cả 3NF. Nó quy định bằng mệnh đề triệt để: Mọi thứ có quyền năng quyết định (Determinant) trong bảng bắt buộc phải là một Siêu khóa (Superkey). Không có ngoại lệ.</p>
-                    <p class="mb-4 text-slate-700"><b>👨‍💻 Phân tích việc áp dụng BCNF tại bảng <code>semester_enrollments</code></b></p>
+                    <p class="mb-4 text-slate-700"><b>👨‍💻 Phân tích việc áp dụng BCNF mạnh mẽ trong Cấu trúc hệ thống</b></p>
                     <div class="bg-purple-50 p-4 rounded-lg">
-                        <p class="text-sm text-slate-800 font-bold">Yêu cầu nghiệp vụ: Sinh viên A, khi vào Học kỳ B, thì bắt buộc phải xếp vào Học ở Lớp C.</p>
+                        <p class="text-sm text-slate-800 font-bold">1. Đối với bảng semester_enrollments (Gán lớp cho sinh viên theo kỳ):</p>
                         <ul class="text-sm list-disc pl-5 mt-2 space-y-2 text-slate-700">
                             <li>Nếu ta nối 3 cột lại làm Khóa Chính Phức Hợp: <code>(user_id, semester_id, class_id)</code>.</li>
                             <li>Theo nghiệp vụ, vì 1 kỳ sinh viên chỉ học 1 lớp, nên cặp <code>(user_id, semester_id)</code> dư sức quyết định được giá trị <code>class_id</code>.</li>
                             <li><b>Phát hiện Vi phạm BCNF:</b> Cặp <code>(user_id, semester_id)</code> là kẻ quyết định dữ liệu, nhưng nó KHÔNG PHẢI LÀ SIÊU KHÓA (Vì khóa là cả 3 cột kia). Điều này vi phạm nghiêm trọng luận điểm của BCNF.</li>
-                            <li><b>👉 Cách Đồ án khắc phục (Bám sát kiến trúc SQL gốc):</b><br/> 
-                                Trong file SQL, đồ án đã loại bỏ hẳn Khóa chính phức hợp. Thay vào đó, gán cho bảng này một Khóa chính tự động sinh độc lập là <code>id VARCHAR(36) PRIMARY KEY</code>. <br/>
-                                Ngay lập tức, thiết kế này giúp bảng đạt trạng thái BCNF hoàn hảo tự nhiên vì không còn bất kỳ tổ hợp nào phải gánh trách nhiệm làm Khóa chính phức tạp nữa. Mối quan hệ giữa Sinh viên, Học kỳ và Lớp học được giải phóng hoàn toàn và quản lý trơn tru thông qua các Khóa ngoại (Foreign Key) riêng lẻ.</li>
+                            <li><b>👉 Cách Đồ án khắc phục (Bám sát Prisma Schema):</b><br/> 
+                                Trong cấu trúc gốc, đồ án đã loại bỏ hẳn Khóa chính phức hợp. Thay vào đó, gán cho bảng này một Khóa chính tự động sinh độc lập là <code>id VARCHAR(36) PRIMARY KEY</code>. Đồng thời bổ sung một ràng buộc <code>@@unique([user_id, semester_id])</code>. <br/>
+                                Ngay lập tức, thiết kế này giúp bảng đạt trạng thái BCNF hoàn hảo tự nhiên vì không còn bất kỳ tổ hợp nào phải gánh trách nhiệm làm Khóa chính phức tạp nữa, trong khi tính duy nhất vẫn được bảo vệ nghiêm ngặt bằng Constraint. Mối quan hệ giữa Sinh viên, Học kỳ và Lớp học được giải phóng hoàn toàn.</li>
+                        </ul>
+                        <div style="border-top: 1px solid #d8b4fe; margin: 15px 0;"></div>
+                        <p class="text-sm text-slate-800 font-bold">2. Đối với bảng score_entries (Nhật ký người chấm điểm):</p>
+                        <ul class="text-sm list-disc pl-5 mt-2 space-y-2 text-slate-700">
+                            <li>Bảng nhập điểm <code>score_entries</code> có ràng buộc Unique Constraint: <code>@@unique([score_detail_id, scorer_role])</code>.</li>
+                            <li><b>Lý do:</b> Nghiệp vụ quy định mỗi người chấm (Sinh viên, Lớp trưởng, Cố vấn) chỉ được chấm đúng một lần cho một tiêu chí cụ thể. Do đó cặp <code>(score_detail_id, scorer_role)</code> quyết định duy nhất mức điểm <code>score</code>.</li>
+                            <li>Cặp này chính là khóa dự tuyển (Candidate Key / Superkey) hoàn hảo. Nó là kẻ quyết định dữ liệu (Determinant) duy nhất trong bảng. Điều này chứng minh thiết kế Database của nhóm đã chạm đến độ sâu của BCNF, bảo đảm hệ thống vững chãi kể cả khi phải đón luồng traffic chấm điểm tập thể cực lớn.</li>
                         </ul>
                     </div>
                 </div>
@@ -628,7 +636,7 @@
                     title = "Ngôn Ngữ Định Nghĩa Dữ Liệu (DDL) & Ràng Buộc";
                     theory = `<b>📖 Khái Niệm Lý Thuyết:</b> DDL (Data Definition Language) bao gồm các lệnh dùng để khởi tạo và định nghĩa cấu trúc của cơ sở dữ liệu (như CREATE tạo mới, ALTER sửa đổi, DROP xóa bỏ). Đặc biệt quan trọng trong DDL là việc thiết lập các Ràng buộc toàn vẹn (Constraints) như Khóa chính (PK), Khóa ngoại (FK), CHECK hay UNIQUE để bảo vệ dữ liệu khỏi các sai sót ngay từ tầng sâu nhất của hệ thống, không phụ thuộc vào code trên ứng dụng.`;
                     html = `
-<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Phân tích việc áp dụng trong Đồ Án (Bám sát file SQL):</p>
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Phân tích việc áp dụng trong Đồ Án (Bám sát Prisma Schema & Sinh ra SQL chuẩn):</p>
 <pre><code class="language-sql">/* Đồ án sử dụng ENUM để khóa chặt các giá trị phân quyền. 
    Thay vì để cột role là chuỗi văn bản VARCHAR tự do dễ bị lỗi đánh máy 
    (như vô tình nhập "Svien" thay vì "STUDENT"), việc định nghĩa TYPE ENUM bắt buộc
@@ -652,10 +660,31 @@ CREATE TABLE public.classes (
        FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
 
+/* Phân tích cấu trúc bảng score_entries (lưu vết điểm số) được sinh ra từ Prisma: */
+CREATE TABLE public.score_entries (
+    id VARCHAR(36) PRIMARY KEY,
+    score_detail_id VARCHAR(36) NOT NULL,
+    scorer_role scorer_role NOT NULL,
+    score DECIMAL(5, 2) NOT NULL,
+    scored_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    
+    /* Thiết lập Ràng buộc Khóa ngoại (Foreign Key) xóa xếp tầng (ON DELETE CASCADE). 
+       Bảo mật dữ liệu: Nếu một chi tiết điểm mẹ bị xóa, toàn bộ lịch sử chấm của nó 
+       cũng lập tức bị dọn sạch dưới ổ cứng, tránh việc rác dữ liệu tồn đọng (Orphan rows). */
+    CONSTRAINT fk_se_detail 
+       FOREIGN KEY (score_detail_id) REFERENCES public.score_details(id) ON DELETE CASCADE
+);
+
+/* Ràng buộc UNIQUE (Chống Dị thường chèn - Insert Anomaly):
+   Bảo vệ sự toàn vẹn logic điểm số: 1 Vai trò (Sinh viên/Lớp trưởng/CVHT)
+   Tuyệt đối chỉ được tạo 1 dòng ghi điểm duy nhất cho 1 mục tiêu chí. */
+ALTER TABLE public.score_entries 
+    ADD CONSTRAINT uk_se_detail_role UNIQUE (score_detail_id, scorer_role);
+
 /* Ràng buộc CHECK Constraint: Quy định chặt chẽ luật chơi toán học. 
-   Câu lệnh dưới đây cấm tuyệt đối việc Cố vấn nhập điểm mức âm (score < 0) vào bảng score_entries.
-   Nếu code Backend cố tình gửi điểm âm xuống, Database sẽ chặn đứng và báo lỗi ngay lập tức. */
-ALTER TABLE score_entries ADD CONSTRAINT chk_score_positive CHECK (score >= 0);
+   Câu lệnh dưới đây cấm tuyệt đối việc nhập điểm mức âm (score < 0) vào bảng điểm.
+   Dù Hacker có xuyên thủng tầng Backend và gửi mã độc, DB vẫn sẽ chặn đứng bằng khiên thép. */
+ALTER TABLE public.score_entries ADD CONSTRAINT chk_score_positive CHECK (score >= 0);
 </code></pre>`;
                     break;
                 case 'trigger':
@@ -663,30 +692,32 @@ ALTER TABLE score_entries ADD CONSTRAINT chk_score_positive CHECK (score >= 0);
                     theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Trigger giống như những chiếc "Bẫy tự động" được cài sẵn vào một bảng dữ liệu. Nó nằm im lìm và chỉ tự động bùng nổ (kích hoạt) khi phát hiện có một sự kiện thao tác dữ liệu (như INSERT, UPDATE, hoặc DELETE) chạm vào bảng đó. Nó hoạt động ngầm hoàn toàn dưới Database Engine, các lập trình viên Backend không cần phải gọi nó.`;
                     html = `
 <p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Tại sao đồ án lại xài Trigger cho bảng điểm?</p>
-<p class="text-sm text-slate-600 mb-2">Code Backend trên Server (ví dụ Node.js hay Java) có thể bị lỗi, dẫn đến việc cập nhật điểm nhưng quên ghi Log lịch sử. Để bảo mật tuyệt đối, đồ án dùng Trigger: Dù ai hay công cụ nào sửa điểm ở bất kỳ đâu, Trigger đều sẽ bắt lấy dữ liệu Cũ (OLD) và Mới (NEW) để nhét vào bảng Log.</p>
+<p class="text-sm text-slate-600 mb-2">Code Backend trên Server (ví dụ Node.js hay Java) có thể bị lỗi do lập trình viên sơ suất, dẫn đến việc cập nhật điểm nhưng quên ghi Log lịch sử. Để bảo mật tuyệt đối, đồ án dùng Trigger: Dù ai hay công cụ nào sửa điểm ở bất kỳ đâu (Thậm chí là Admin tự gõ lệnh lén dưới hệ thống CSDL), Trigger đều sẽ tự động bắt lấy dữ liệu Cũ (OLD) và Mới (NEW) để nhét vào bảng <code>score_adjustment_logs</code>, tạo thành một Audit Trail vĩnh viễn không thể chối cãi.</p>
 <pre><code class="language-sql">/* BƯỚC 1: Khai báo Hàm Trigger xử lý logic (Function)
    Hàm này làm nhiệm vụ copy số điểm Cũ (OLD.score) và số điểm Mới (NEW.score) 
-   đẩy sang bảng lưu vết score_adjustment_logs. */
-CREATE FUNCTION log_score_changes() RETURNS trigger AS $$
+   đẩy sang bảng lưu vết score_adjustment_logs một cách hoàn toàn tự động. */
+CREATE OR REPLACE FUNCTION log_score_adjustment() RETURNS trigger AS $$
 BEGIN
     INSERT INTO score_adjustment_logs 
-        (score_detail_id, old_score, new_score, adjusted_by_id)
+        (id, score_detail_id, adjusted_by_id, old_score, new_score, created_at)
     VALUES 
-        (NEW.score_detail_id, OLD.score, NEW.score, NEW.scorer_id);
-    -- Trả lại dữ liệu mới để hoàn tất lệnh UPDATE đang chạy dở
+        -- Sử dụng hàm gen_random_uuid() của Postgres để sinh ID khóa chính
+        (gen_random_uuid(), NEW.score_detail_id, current_setting('app.current_user_id'), OLD.score, NEW.score, NOW());
+        
+    -- Trả lại dữ liệu mới để hoàn tất chu trình của lệnh UPDATE đang chạy dở
     RETURN NEW; 
 END;
 $$ LANGUAGE plpgsql;
 
 /* BƯỚC 2: Gắn Trigger vào Bảng score_entries
-   Hành động: AFTER UPDATE (Chỉ kích hoạt SAU KHI cột score bị cập nhật).
-   Tối ưu hiệu năng bằng mệnh đề WHEN: Nếu điểm mới (NEW) y hệt điểm cũ (OLD) thì 
-   Trigger sẽ không kích hoạt để đỡ làm nặng hệ thống. */
+   Hành động: AFTER UPDATE (Chỉ kích hoạt SAU KHI cột score bị cập nhật thành công).
+   Tối ưu hiệu năng mạng: Bằng mệnh đề WHEN, nếu điểm mới (NEW) y hệt điểm cũ (OLD)
+   (ví dụ điểm cũ là 10, người dùng vô tình bấm lưu gửi xuống vẫn là 10) thì Trigger sẽ ngủ yên không làm nặng hệ thống. */
 CREATE TRIGGER trg_log_score_adjustment
 AFTER UPDATE OF score ON public.score_entries
 FOR EACH ROW
 WHEN (OLD.score IS DISTINCT FROM NEW.score)
-EXECUTE FUNCTION log_score_changes();
+EXECUTE FUNCTION log_score_adjustment();
 </code></pre>`;
                     break;
                 case 'view':
@@ -694,13 +725,13 @@ EXECUTE FUNCTION log_score_changes();
                     theory = `<b>📖 Khái Niệm Lý Thuyết:</b> View bản chất là một câu lệnh truy vấn dữ liệu (SELECT) được lưu lại và đặt tên. Dữ liệu bên trong View hoàn toàn không được ghi cứng ra ổ cứng. Mỗi khi bạn truy vấn (SELECT) vào View, hệ quản trị cơ sở dữ liệu mới bắt đầu thu thập dữ liệu (Pull) từ các bảng gốc để tính toán và ghép lại.`;
                     html = `
 <p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Áp Dụng Trong Đồ Án: Che giấu thông tin nhạy cảm và đóng gói câu lệnh dài.</p>
-<p class="text-sm text-slate-600 mb-2">Trong đồ án, thay vì mỗi lần muốn biết thông tin xếp loại của lớp phải viết lại lệnh JOIN qua 5 bảng (classes, semester_enrollments, scoring_sheets, users), ta lưu nó thành một View. Hơn nữa, dùng View giúp Trường chặn không cho người dùng cấp thấp nhìn thấy cột mật khẩu (password_hash) trong bảng users.</p>
-<pre><code class="language-sql">/* Lệnh tạo View tổng hợp điểm lớp học (Được trích xuất logic từ file Dump SQL) */
+<p class="text-sm text-slate-600 mb-2">Trong đồ án, thay vì mỗi lần muốn lập báo cáo thống kê cho Khoa phải bắt hệ thống chạy lại nguyên một câu lệnh khổng lồ nối 5 bảng với nhau (classes, semester_enrollments, scoring_sheets, users), ta lưu nó thành một View. Hơn nữa, View là lá chắn bảo mật tuyệt vời để cấm nhân sự cấp thấp nhìn thấy cột mật khẩu (password_hash) trong bảng users.</p>
+<pre><code class="language-sql">/* Lệnh tạo View tổng hợp điểm hiệu suất của toàn bộ lớp học */
 CREATE OR REPLACE VIEW vw_class_performance AS
 SELECT 
     c.id AS class_id, 
     c.name AS class_name,
-    COUNT(u.id) AS total_students,
+    COUNT(DISTINCT u.id) AS total_students,
     -- Dùng hàm SUM/AVG tính tổng rồi làm tròn ROUND đến 2 chữ số thập phân
     ROUND(AVG(ss.final_total), 2) AS average_score 
 FROM classes c
@@ -711,12 +742,12 @@ WHERE ss.status = 'FINALIZED'
 GROUP BY c.id, c.name;
 
 /* Phân quyền bảo mật mức CSDL (Cốt lõi của View): 
-   Chỉ cho phép tài khoản quản lý (Role Admin) mới được phép đọc View này. 
-   Tuyệt đối cấm họ đọc thẳng vào bảng users để bảo vệ quyền riêng tư! */
+   Chỉ cho phép tài khoản Quản lý cấp Khoa (role_department_head) mới được phép đọc View này. 
+   Tuyệt đối cấm họ Select thẳng vào các bảng gốc để bảo vệ dữ liệu nhạy cảm (Đạt tiêu chuẩn bảo mật). */
 GRANT SELECT ON vw_class_performance TO role_department_head;
 
-/* Sau khi làm xong, thay vì code backend phải viết lệnh JOIN 5 bảng siêu dài, 
-   chỉ cần gọi rất đơn giản: */
+/* Ở tầng Backend, thay vì code một khối JOIN 5 bảng siêu dài mỗi lần cần vẽ biểu đồ, 
+   chỉ cần gọi rất đơn giản như đang truy vấn 1 bảng bình thường: */
 SELECT * FROM vw_class_performance ORDER BY average_score DESC;
 </code></pre>`;
                     break;
@@ -725,28 +756,28 @@ SELECT * FROM vw_class_performance ORDER BY average_score DESC;
                     theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Stored Procedure (hoặc Function trong PostgreSQL) là một đoạn mã nguồn lập trình hoàn chỉnh (có hỗ trợ khai báo biến, câu lệnh IF ELSE, vòng lặp FOR) được lưu biên dịch sẵn bên trong Hệ Quản Trị CSDL. Bạn có thể gọi chạy nó giống như việc gọi một hàm lập trình bình thường.`;
                     html = `
 <p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Tối ưu Hiệu năng mạng (Network Traffic) cho Đồ án:</p>
-<p class="text-sm text-slate-600 mb-2">Thử tưởng tượng nếu phải tính điểm cho 5.000 sinh viên. Nếu code bằng Java/Node.js, hệ thống phải tải (SELECT) 5.000 tờ phiếu điểm chứa hàng trăm ngàn dòng chi tiết từ máy chủ DB về máy chủ App thông qua mạng internet để cộng trừ, rồi lại gửi lại (UPDATE) lên DB. Quá tải mạng! Đồ án giải quyết bằng cách: Viết một hàm Function dưới DB, truyền mã phiếu điểm vào, DB tự chạy vòng lặp tính ở tốc độ ổ cứng siêu tốc rồi ghi thẳng vào bảng cha, máy chủ mạng không tốn một chút băng thông nào.</p>
+<p class="text-sm text-slate-600 mb-2">Thử tưởng tượng khi chốt điểm cho 5.000 sinh viên toàn PTIT. Nếu code bằng NodeJS, máy chủ App phải tải 5.000 tờ phiếu chứa hàng trăm ngàn dòng chi tiết từ DB về thông qua mạng Internet để cộng trừ từng dòng, tính xong rồi lại mở kết nối UPDATE ngược lại gửi qua mạng về DB. Điều này sẽ đánh sập băng thông nội bộ! <br/><br/> Đồ án giải quyết siêu việt bằng cách: Viết một hàm Function nhúng thẳng vào nhân Database, truyền mã phiếu điểm vào, DB sẽ tự bung vòng lặp, tính toán ở tốc độ cực cao của bộ nhớ đệm ổ cứng nội bộ rồi ghi đè lên bảng mẹ, máy chủ API bên ngoài không hề tốn 1 byte băng thông nào cho việc xử lý chuỗi này.</p>
 <pre><code class="language-sql">/* Hàm Tính Tổng Điểm cho Cố Vấn (Ngôn ngữ PL/pgSQL chuẩn của PostgreSQL) */
 CREATE OR REPLACE FUNCTION calculate_advisor_total(sheet_id VARCHAR) 
 RETURNS NUMERIC AS $$
 DECLARE
-    -- Khai báo biến ảo trong DB để chứa tổng điểm
+    -- Khai báo biến ảo trong DB để chứa tổng điểm trung gian
     total NUMERIC := 0;
 BEGIN
-    /* Thực hiện tính tổng từ các điểm thành phần. 
-       Hàm COALESCE(SUM(score), 0): Nếu sinh viên chưa có mục điểm nào thì SUM 
-       sẽ bị rỗng (NULL). Hàm COALESCE sẽ an toàn bọc lỗi ép nó về số 0. */
-    SELECT COALESCE(SUM(score), 0) INTO total
+    /* Thực hiện tính tổng từ các điểm thành phần trong bảng score_entries. 
+       Hàm COALESCE(SUM(score), 0): Nếu sinh viên chưa có mục điểm nào thì lệnh SUM 
+       sẽ bị rỗng (NULL). Hàm COALESCE sẽ an toàn bọc lỗi ép nó về số 0 để tránh lỗi văng toán học. */
+    SELECT COALESCE(SUM(e.score), 0) INTO total
     FROM score_entries e
     JOIN score_details d ON e.score_detail_id = d.id
     WHERE d.scoring_sheet_id = sheet_id AND e.scorer_role = 'ADVISOR';
     
-    /* Auto UPDATE tổng điểm vừa tính được vào tờ Phiếu điểm mẹ */
+    /* Tự động UPDATE điểm tổng vừa tính được vào cột advisor_total của Phiếu điểm mẹ */
     UPDATE scoring_sheets 
     SET advisor_total = total, updated_at = CURRENT_TIMESTAMP
     WHERE id = sheet_id;
     
-    -- Trả kết quả số học về
+    -- Trả kết quả con số cuối cùng về cho hệ thống Backend API
     RETURN total;
 END;
 $$ LANGUAGE plpgsql;
@@ -757,56 +788,61 @@ $$ LANGUAGE plpgsql;
                     theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Transaction (Giao dịch) là cơ chế đóng gói hàng loạt câu lệnh SQL độc lập lại thành một cụm duy nhất (Nguyên tử hóa - Atomicity). Với luật "Tất cả hoặc Không gì cả" (All or Nothing): Nếu cả cụm thành công thì dữ liệu mới được lưu (COMMIT), còn nếu chỉ 1 lệnh bị lỗi thì toàn bộ sẽ bị đảo ngược (ROLLBACK) xóa sạch dấu vết như chưa từng chạy, bảo đảm CSDL không bao giờ bị rác hay bất đồng bộ (Thuộc tính ACID).`;
                     html = `
 <p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Tại sao nghiệp vụ Duyệt Điểm bắt buộc phải dùng Transaction?</p>
-<p class="text-sm text-slate-600 mb-2">Khi Cố vấn nhấn nút "Duyệt Điểm", hệ thống phải làm 3 việc: (1) Sửa điểm tổng vào bảng phiếu. (2) Sửa trạng thái phiếu. (3) Bắn thông báo về máy sinh viên. Nếu máy chủ lỡ sập nguồn ngay khi vừa làm xong việc (1), sinh viên sẽ không bao giờ nhận được thông báo, hệ thống sẽ bị treo trạng thái vĩnh viễn. Transaction chính là cứu cánh dập tắt rủi ro này.</p>
-<pre><code class="language-sql">-- Khởi động Giao dịch (Bật rào chắn bảo vệ Atomicity)
+<p class="text-sm text-slate-600 mb-2">Dựa trên mô hình Prisma schema của hệ thống, khi Cố vấn nhấn nút "Duyệt Điểm", có 3 luồng dữ liệu song song phải chạy: (1) Sửa trạng thái trong bảng <code>scoring_sheets</code>. (2) Ghi log thao tác duyệt vào bảng <code>review_actions</code>. (3) Bắn thông báo báo cáo vào bảng <code>notifications</code>. <br/><br/>
+Nếu không bọc trong Transaction, rủi ro vô cùng lớn: Máy chủ chạy xong bước 1 và đột ngột cúp điện. Cố vấn nghĩ là đã duyệt xong nhưng sinh viên không bao giờ nhận được thông báo, và log duyệt điểm bị trống rỗng. Database bị đứt gãy sự nhất quán.</p>
+<pre><code class="language-sql">-- Khởi động Giao dịch (Bật rào chắn không gian bảo vệ Atomicity)
 BEGIN; 
 
 /* LỆNH 1: Cập nhật Trạng thái Phiếu sang ADVISOR_APPROVED */
-UPDATE scoring_sheets SET status = 'ADVISOR_APPROVED' WHERE id = 'uuid-123';
+UPDATE scoring_sheets 
+SET status = 'ADVISOR_APPROVED', updated_at = CURRENT_TIMESTAMP 
+WHERE id = 'sheet-uuid-123';
 
-/* LỆNH 2: Lưu nhật ký xem ai là Cố vấn đã thao tác vào bảng review_actions */
-INSERT INTO review_actions (scoring_sheet_id, reviewer_id, action) 
-VALUES ('uuid-123', 'uuid-advisor', 'APPROVE');
+/* LỆNH 2: Lưu nhật ký theo dõi xem ai là Cố vấn đã thao tác vào bảng review_actions */
+INSERT INTO review_actions (id, scoring_sheet_id, reviewer_id, action, from_status, to_status, created_at) 
+VALUES (gen_random_uuid(), 'sheet-uuid-123', 'adv-uuid-456', 'APPROVE', 'ADVISOR_REVIEWING', 'ADVISOR_APPROVED', CURRENT_TIMESTAMP);
 
-/* LỆNH 3: Nhúng thông báo tự động (Push Notification) gửi cho Sinh viên */
-INSERT INTO notifications (user_id, title, content) 
-VALUES ('uuid-sv', 'Duyệt thành công', 'Cố vấn đã duyệt phiếu điểm của bạn');
+/* LỆNH 3: Nhúng thông báo tự động (Push Notification) gửi cho thiết bị của Sinh viên */
+INSERT INTO notifications (id, user_id, type, title, content, is_read, created_at) 
+VALUES (gen_random_uuid(), 'student-uuid-789', 'SCORE_APPROVED', 'Đã duyệt điểm', 'Cố vấn học tập đã chính thức duyệt phiếu điểm của bạn.', 0, CURRENT_TIMESTAMP);
 
--- Nếu toàn bộ 3 lệnh chạy mượt mà -> Ghi xác nhận vĩnh viễn vào ổ cứng (Durability)
+-- MỌI THỨ AN TOÀN -> Ghi xác nhận vĩnh viễn vào hệ thống ổ cứng vật lý (Đảm bảo tính Durability)
 COMMIT; 
 
-/* TÌNH HUỐNG XẤU: Nếu máy chủ ổ cứng đầy ở Lệnh 3, Hệ thống sẽ tự động bắt Lỗi và phát lệnh:
+/* TÌNH HUỐNG XẤU (HỆ THỐNG GẶP LỖI GIỮA CHỪNG): 
+   Nếu ổ cứng báo đầy ở Lệnh số 3, Hệ thống sẽ ném ra Lỗi (Exception) và tự động gọi lệnh:
    ROLLBACK; 
-   -> Ngay lập tức Hủy bỏ mọi tác động của Lệnh 1 và 2. Trả CSDL về nguyên trạng ban đầu (Nhất quán - Consistency). */
+   -> Ngay lập tức DB Engine sẽ Hủy bỏ và dọn dẹp mọi tác động đã ghi nháp của Lệnh 1 và Lệnh 2 trước đó. Trả CSDL về nguyên trạng y như lúc đầu chưa có gì xảy ra (Bảo toàn tính Consistency tuyệt đối). */
 </code></pre>`;
                     break;
                 case 'complex':
                     title = "Complex Queries (Truy Vấn Phức Tạp Đa Chiều)";
                     theory = `<b>📖 Khái Niệm Lý Thuyết:</b> Do thiết kế CSDL đã được chuẩn hóa đến mức độ cao (3NF, BCNF) chia thành nhiều bảng nhỏ, việc khai thác báo cáo bắt buộc phải sử dụng các Query phức tạp. Các kỹ thuật như JOIN (nối bảng), GROUP BY (nhóm dữ liệu để thống kê tổng hợp), HAVING (lọc dữ liệu đã qua thống kê) và SUBQUERY (Truy vấn con nằm lồng bên trong truy vấn mẹ) là cực kỳ thiết yếu.`;
                     html = `
-<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Bài toán Đồ án: Tìm Thủ Khoa Điểm Rèn Luyện của từng Khoa.</p>
-<p class="text-sm text-slate-600 mb-2">Yêu cầu: Viết Query in ra danh sách mỗi Khoa chỉ được xuất hiện đúng 1 bạn Sinh Viên có tổng điểm (final_total) cao nhất. Đây là một truy vấn điển hình phải sử dụng Truy vấn con tương quan (Correlated Subquery) vì bạn không thể dùng phép MAX() đơn giản mà giữ lại được thông tin của người học.</p>
-<pre><code class="language-sql">/* Cấu trúc câu lệnh JOIN 5 bảng để tìm đường từ User -> Khoa */
-SELECT u.student_id, u.full_name, d.name AS department_name, s.final_total
+<p class="text-sm font-bold text-slate-700 mb-2 mt-4">👨‍💻 Bài toán Báo cáo Nâng cao: Tìm Thủ Khoa Điểm Rèn Luyện của từng Khoa.</p>
+<p class="text-sm text-slate-600 mb-2">Yêu cầu vô cùng khắt khe từ nhà trường: Xuất báo cáo danh sách, trong đó mỗi Khoa chỉ được hiển thị đúng 1 bạn Sinh Viên duy nhất có tổng điểm (final_total) cao nhất toàn khoa trong Học kỳ đang xét. Đây là một truy vấn điển hình phải sử dụng vũ khí hạng nặng là <b>Truy vấn con tương quan (Correlated Subquery)</b> vì bạn không thể dùng hàm GROUP BY và MAX() cơ bản mà đòi giữ lại được các thông tin cá nhân của người sinh viên (student_id, full_name).</p>
+<pre><code class="language-sql">/* Khung xương câu lệnh JOIN khổng lồ 5 bảng để tìm đường liên kết từ Bảng User -> Khoa */
+SELECT d.name AS department_name, c.name AS class_name, u.full_name, u.student_id, s.final_total
 FROM users u
 JOIN semester_enrollments se ON u.id = se.user_id
 JOIN scoring_sheets s ON se.id = s.enrollment_id
 JOIN classes c ON se.class_id = c.id
 JOIN departments d ON c.department_id = d.id
-WHERE s.status = 'FINALIZED' -- Chỉ lấy phiếu điểm đã chốt duyệt cuối cùng
--- Gom nhóm để tránh trùng lặp dòng dữ liệu
-GROUP BY u.student_id, u.full_name, d.id, d.name, s.final_total
-/* BƯỚC QUAN TRỌNG NHẤT: Mệnh đề HAVING kết hợp Truy Vấn Lồng (Subquery) */
-HAVING s.final_total = (
-    /* Truy vấn lồng: Cứ mỗi dòng ở ngoài, nó sẽ nhảy vào đây tìm số Điểm Cao Nhất 
-       (MAX) của CÙNG cái Khoa đó. (Sự Tương Quan - d.id từ bên ngoài)
-       Chỉ Sinh viên nào có điểm bằng đúng điểm MAX này mới lọt qua màng lọc HAVING. */
+WHERE s.status = 'FINALIZED' -- Bộ lọc màng 1: Chỉ lấy phiếu điểm đã chốt duyệt cuối cùng
+
+/* BƯỚC QUAN TRỌNG NHẤT: Mệnh đề lọc kết hợp Truy Vấn Lồng Tương Quan (Correlated Subquery) */
+  AND s.final_total = (
+    
+    /* Cơ chế hoạt động: Engine sẽ ném từng dòng dữ liệu từ Query bên ngoài vào khối lồng này.
+       Nó sẽ tìm số Điểm Cao Nhất (MAX) của CÙNG cái Khoa đó (Sự Tương Quan - d.id lấy từ bên ngoài).
+       Chỉ Sinh viên nào có điểm bằng ĐÚNG điểm MAX này mới vượt qua cửa ải để xuất hiện trong báo cáo tổng. */
     SELECT MAX(s2.final_total)
     FROM scoring_sheets s2
     JOIN semester_enrollments se2 ON s2.enrollment_id = se2.id
     JOIN classes c2 ON se2.class_id = c2.id
-    WHERE c2.department_id = d.id
-);
+    WHERE c2.department_id = d.id AND se2.semester_id = se.semester_id
+)
+ORDER BY d.name;
 </code></pre>`;
                     break;
             }
